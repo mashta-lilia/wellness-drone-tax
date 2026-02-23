@@ -7,6 +7,7 @@ class OrderBase(BaseModel):
     longitude: float
     subtotal: float
 
+
 class OrderCreate(OrderBase):
     pass
 
@@ -21,3 +22,7 @@ class OrderResponse(OrderBase):
 
     class Config:
         from_attributes = True
+        
+class OrdersListResponse(BaseModel):
+    total_count: int
+    items: List[OrderResponse]
