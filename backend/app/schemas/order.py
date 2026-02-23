@@ -14,6 +14,7 @@ class OrderBase(BaseModel):
     longitude: float
     subtotal: float
 
+
 class OrderCreate(OrderBase):
     pass
 
