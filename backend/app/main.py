@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.services.import_service import ImportService
 from app.routers import taxes
+from app.routers import orders
 
 # Этот блок кода управляет жизненным циклом приложения
 @asynccontextmanager
@@ -24,3 +25,4 @@ async def lifespan(app: FastAPI):
 # Подключаем lifespan к нашему приложению
 app = FastAPI(lifespan=lifespan, title="Tax API")
 app.include_router(taxes.router)
+app.include_router(orders.router)
