@@ -4,7 +4,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Імпорти від Даші (перевір шлях до MainLayout, він може бути в корне src)
-import MainLayout from './components/MainLayout';
+import MainLayout from './layouts/MainLayout';
 import OrdersListPage from './pages/OrdersListPage';
 import ImportPage from './pages/ImportPage';
 import CreateOrderPage from './pages/CreateOrderPage';
