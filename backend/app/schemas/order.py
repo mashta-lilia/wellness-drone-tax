@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List
 import uuid
@@ -15,9 +15,11 @@ class OrderBase(BaseModel):
     subtotal: float
 
 
-class OrderCreate(OrderBase):
-    pass
-
+class OrderCreate(BaseModel):
+    latitude: float = Field(..., description="Широта обов'язкова")
+    longitude: float = Field(..., description="Довгота обов'язкова")
+    subtotal: float = Field(..., ge=0, description="Сума замовлення не може бути від'ємною")
+    
 class OrderResponse(OrderBase):
     id: uuid.UUID  
     timestamp: datetime
