@@ -144,7 +144,7 @@ const OrdersListPage = () => {
 
   return (
     <Box sx={{ pb: 5 }}>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold' }}>
+      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center'  }}>
         Головний список замовлень
       </Typography>
 
