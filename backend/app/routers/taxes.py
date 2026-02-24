@@ -1,82 +1,54 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, asc
-from datetime import datetime
-from typing import Optional
-
 from app.db.database import get_db
-from app.db.models.models import Order
-from app.schemas.order import OrdersListResponse
-from app.services.import_service import ImportService
 from app.services.tax_service import TaxCalculatorService, get_tax_service
+from app.services.import_service import ImportService
 
-router = APIRouter(prefix="/api/taxes", tags=["Taxes"])
+router = APIRouter(
+    prefix="/api/taxes",
+    tags=["Taxes"]
+)
 
-
-@router.post("/update-dataset")
-async def update_tax_dataset(
-    tax_service: TaxCalculatorService = Depends(get_tax_service) 
+# --- 1. НОВЫЙ ЭНДПОИНТ (Импорт CSV) ---
+@router.post("/import-csv")
+async def import_orders_csv(
+    file: UploadFile = File(...), 
+    db: Session = Depends(get_db),
+    tax_service: TaxCalculatorService = Depends(get_tax_service)
 ):
     """
-    Принудительно скачивает свежую версию датасета и обновляет кэш.
+    Загружает CSV файл с заказами, считает налоги и сохраняет в БД.
+    Ожидает файл с колонками: amount, lat, lon
     """
-    import_service = ImportService()
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be a CSV")
+        
+    # Инициализируем сервис импорта, передавая ему БД и сервис налогов
+    import_service = ImportService(db, tax_service)
     
-    success = await import_service.download_dataset()
+    # Запускаем процесс
+    result = await import_service.process_csv(file)
     
-    if not success:
-        raise HTTPException(status_code=500, detail="Ошибка при скачивании датасета с сервера NY.")
-    
-    tax_service.reload_data()
-    
-    return {
-        "status": "success", 
-        "message": "Налоговый датасет успешно обновлен и загружен в память.",
-        "records_loaded": len(tax_service.tax_data) 
-    }
+    return result
+
+
+# --- 2. СТАРЫЙ ЭНДПОИНТ (Расчет для одной точки) ---
+# Мы его оставили, но переписали под новый метод calculate_tax
 @router.get("/calculate")
 async def calculate_tax(
     lat: float, 
     lon: float,
+    amount: float = Query(100.0, description="Сумма для расчета налога (по дефолту 100)"),
     tax_service: TaxCalculatorService = Depends(get_tax_service) 
 ):
     """
-    Получает налоговую ставку по координатам.
+    Получает расчет налога по координатам для конкретной суммы.
+    Полезно для тестирования и отладки.
     """
     try:
-        data = await tax_service.get_raw_tax_data(lat, lon)
+        # Используем наш новый универсальный метод
+        data = await tax_service.calculate_tax(amount, lat, lon)
         return {"status": "success", "data": data}
     except Exception as e:
+        # Если координаты вне NY или ошибка OSM
         raise HTTPException(status_code=400, detail=str(e))
-    
-@router.get("/orders", response_model=OrdersListResponse)
-def get_orders(
-    db: Session = Depends(get_db),
-    limit: int = Query(10, ge=1, le=100), 
-    offset: int = Query(0, ge=0),         
-    start_date: Optional[datetime] = None, 
-    end_date: Optional[datetime] = None,   
-    sort_by: str = Query("timestamp", regex="^(timestamp|subtotal|tax_amount|total_amount)$"),
-    order: str = Query("desc", regex="^(asc|desc)$") 
-):
-    query = db.query(Order)
-
-    if start_date:
-        query = query.filter(Order.timestamp >= start_date)
-    if end_date:
-        query = query.filter(Order.timestamp <= end_date)
-
-    total_count = query.count()
-
-    sort_attr = getattr(Order, sort_by)
-    if order == "desc":
-        query = query.order_by(desc(sort_attr))
-    else:
-        query = query.order_by(asc(sort_attr))
-
-    orders = query.offset(offset).limit(limit).all()
-
-    return {
-        "total_count": total_count,
-        "items": orders
-    }

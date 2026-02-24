@@ -1,0 +1,12 @@
+services:
+  api:
+    build: .
+    container_name: drone-tax-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/sql_app.db  # Додали один / для абсолютного шляху
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./sql_app.db:/app/sql_app.db
+    restart: always
