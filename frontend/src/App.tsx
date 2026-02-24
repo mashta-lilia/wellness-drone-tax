@@ -1,22 +1,31 @@
-import React from 'react'; // Додай це!
-
+import React from 'react';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css'; // Імпорт стилів для гарних сповіщень
+import 'react-toastify/dist/ReactToastify.css';
 import { FileUploader } from './components/forms/FileUploader';
-import { Container, Typography, Box } from '@mui/material';
+// 1. Додаємо імпорт нової форми тут
+import { ManualOrderForm } from './components/forms/ManualOrderForm'; 
+import { Container, Typography, Box, Divider } from '@mui/material';
 
 function App() {
   return (
     <Container maxWidth="sm">
       <Box sx={{ my: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          Імпорт замовлень 
+          Панель управління замовленнями
         </Typography>
         
-        {/* Твій основний компонент */}
+        {/* Issue 5: Завантаження CSV */}
         <FileUploader />
 
-        {/* Глобальний контейнер для сповіщень */}
+        {/* Додамо розділювач, щоб візуально відокремити завдання */}
+        <Divider sx={{ my: 4 }} />
+
+        {/* 2. Issue 6: Ручне створення замовлення */}
+        <Typography variant="h5" gutterBottom align="center">
+          Ручне введення
+        </Typography>
+        <ManualOrderForm />
+
         <ToastContainer position="bottom-right" autoClose={5000} />
       </Box>
     </Container>
