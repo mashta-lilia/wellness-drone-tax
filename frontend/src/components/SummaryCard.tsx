@@ -4,7 +4,7 @@ import { Card, CardContent, Typography, Box, Stack } from '@mui/material';
 // Описуємо типи пропсів
 interface SummaryCardProps {
   title: string;
-  value: string | number;
+  value: string | number; // Додай "| number", якщо його там немає
   icon: React.ReactNode;
   color?: string;
 }
