@@ -1,34 +1,31 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FileUploader } from './components/forms/FileUploader';
-// 1. Додаємо імпорт нової форми тут
-import { ManualOrderForm } from './components/forms/ManualOrderForm'; 
-import { Container, Typography, Box, Divider } from '@mui/material';
+
+// Імпорти від Даші (перевір шлях до MainLayout, він може бути в корне src)
+import MainLayout from './components/MainLayout';
+import OrdersListPage from './pages/OrdersListPage';
+import ImportPage from './pages/ImportPage';
+import CreateOrderPage from './pages/CreateOrderPage';
 
 function App() {
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Панель управління замовленнями
-        </Typography>
-        
-        {/* Issue 5: Завантаження CSV */}
-        <FileUploader />
+    <Router>
+      <Routes>
+        <Route element={<MainLayout />}>
+          {/* Головна сторінка зі списком */}
+          <Route path="/" element={<OrdersListPage />} />
+          
+          {/* Твої сторінки */}
+          <Route path="/import" element={<ImportPage />} />
+          <Route path="/create" element={<CreateOrderPage />} />
+        </Route>
+      </Routes>
 
-        {/* Додамо розділювач, щоб візуально відокремити завдання */}
-        <Divider sx={{ my: 4 }} />
-
-        {/* 2. Issue 6: Ручне створення замовлення */}
-        <Typography variant="h5" gutterBottom align="center">
-          Ручне введення
-        </Typography>
-        <ManualOrderForm />
-
-        <ToastContainer position="bottom-right" autoClose={5000} />
-      </Box>
-    </Container>
+      {/* Глобальні сповіщення для всього застосунку */}
+      <ToastContainer position="bottom-right" autoClose={5000} />
+    </Router>
   );
 }
 
