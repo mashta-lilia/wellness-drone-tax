@@ -47,33 +47,80 @@ export const FileUploader = () => {
   };
 
   return (
-    <Box>
-      <Paper 
-        {...getRootProps()} 
-        sx={{ 
-          p: 4, textAlign: 'center', cursor: 'pointer', 
-          border: '2px dashed #1976d2', bgcolor: isDragActive ? '#e3f2fd' : '#fafafa' 
-        }}
-      >
-        <input {...getInputProps()} />
-        <Typography>
-          {file ? `Файл обрано: ${file.name}` : "Перетягніть CSV сюди або клікніть для вибору"}
-        </Typography>
-        {file && (
-            <Typography variant="caption" display="block">
-                Розмір: {(file.size / 1024).toFixed(2)} KB
-            </Typography>
-        )}
-      </Paper>
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', // Центруємо все по горизонталі
+      justifyContent: 'center', 
+      minHeight: '70vh', 
+      pb: 5 
+    }}
+  >
+    {/* ГОЛОВНИЙ ЗАГОЛОВОК СТОРІНКИ */}
+    <Typography 
+      variant="h4" 
+      sx={{ 
+        mb: 4, 
+        fontWeight: 'bold', 
+        color: '#333',
+        textAlign: 'center' 
+      }}
+    >
+      Завантаження замовлень (CSV)
+    </Typography>
 
-      <Button 
-        fullWidth variant="contained" 
-        onClick={handleUpload} 
-        disabled={!file || loading} // Блокування кнопки
-        sx={{ mt: 2 }}
-      >
-        {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити CSV"}
-      </Button>
-    </Box>
-  );
-};
+    <Paper 
+      {...getRootProps()} 
+      sx={{ 
+        p: 6, // Більше відступів для "повітря"
+        textAlign: 'center', 
+        cursor: 'pointer', 
+        border: '2px dashed #1976d2', 
+        bgcolor: isDragActive ? '#f0f7ff' : '#fff', 
+        borderRadius: 3, 
+        boxShadow: 2, // Тінь як у ручної форми
+        width: '100%',
+        maxWidth: 450, 
+        transition: 'all 0.2s ease-in-out',
+        '&:hover': {
+          borderColor: '#115293',
+          bgcolor: '#fafafa'
+        }
+      }}
+    >
+      <input {...getInputProps()} />
+      <Typography variant="h6" sx={{ color: file ? '#1976d2' : '#666', fontWeight: 'medium' }}>
+        {file ? file.name : "Перетягніть CSV сюди"}
+      </Typography>
+      
+      <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+        або клікніть для вибору файлу
+      </Typography>
+
+      {file && (
+        <Typography variant="caption" display="block" sx={{ mt: 2, color: 'success.main', fontWeight: 'bold' }}>
+          Розмір: {(file.size / 1024).toFixed(2)} KB
+        </Typography>
+      )}
+    </Paper>
+
+    <Button 
+      variant="contained" 
+      onClick={handleUpload} 
+      disabled={!file || loading}
+      sx={{ 
+        mt: 3, 
+        width: '100%', 
+        maxWidth: 450, 
+        py: 1.5, 
+        fontWeight: 'bold', 
+        textTransform: 'none',
+        borderRadius: 2,
+        boxShadow: 2
+      }}
+    >
+      {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити в систему"}
+    </Button>
+  </Box>
+);}

@@ -5,6 +5,9 @@ import {
   TablePagination, CircularProgress, TextField, InputAdornment,
   TableSortLabel // Додано для клікабельних заголовків
 } from '@mui/material';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PercentIcon from '@mui/icons-material/Percent';
@@ -77,6 +80,7 @@ const OrdersListPage = () => {
   
   // 1. Стан для фільтрів та сортування
   const [searchId, setSearchId] = useState('');
+  const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [order, setOrder] = useState<OrderDirection>('asc');
   const [orderBy, setOrderBy] = useState<string>('total_amount');
 
@@ -107,6 +111,10 @@ const OrdersListPage = () => {
       if (searchId) {
         url += `&search=${searchId}`;
       }
+      if (filterDate) {
+      const formattedDate = filterDate.toISOString().split('T')[0];
+      url += `&date=${formattedDate}`;
+    }
 
       const response = await fetch(url);
       const data = await response.json();
@@ -123,7 +131,7 @@ const OrdersListPage = () => {
   // 4. Слідкуємо за всіма змінами стейту
   useEffect(() => {
     fetchOrders();
-  }, [page, rowsPerPage, searchId, order, orderBy]);
+  }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -153,27 +161,62 @@ const OrdersListPage = () => {
       </Grid>
 
       {/* ПАНЕЛЬ ФІЛЬТРІВ */}
-      <Box sx={{ mb: 3, p: 2, bgcolor: '#fff', borderRadius: 2, boxShadow: 1, display: 'flex', gap: 2 }}>
-        <TextField
-          fullWidth
-          size="small"
-          variant="outlined"
-          placeholder="Пошук за ID замовлення..."
-          value={searchId}
-          onChange={(e) => {
-            setSearchId(e.target.value);
-            setPage(0);
-          }}
-          sx={{ maxWidth: 400 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
+<Box sx={{ 
+  mb: 3, p: 2, bgcolor: '#fff', borderRadius: 2, boxShadow: 1, 
+  display: 'flex', gap: 2,
+  // ЦЕЙ РЯДОК — МАГІЯ: він знаходить внутрішню обгортку календаря і розтягує її
+  '& .react-datepicker-wrapper': { width: '100%', maxWidth: '400px' } 
+}}>
+  
+  {/* Твій існуючий пошук за ID (400px) */}
+  <TextField
+    fullWidth
+    size="small"
+    variant="outlined"
+    placeholder="Пошук за ID замовлення..."
+    value={searchId}
+    onChange={(e) => {
+      setSearchId(e.target.value);
+      setPage(0);
+    }}
+    sx={{ maxWidth: 400 }}
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <SearchIcon color="action" />
+        </InputAdornment>
+      ),
+    }}
+  />
+
+  {/* Твій календар (тепер він точно буде 400px) */}
+  <DatePicker
+    selected={filterDate}
+    onChange={(date: Date | null) => { 
+      setFilterDate(date);
+      setPage(0);
+    }}
+    placeholderText="Фільтр за датою..."
+    isClearable
+    dateFormat="yyyy-MM-dd"
+    customInput={
+      <TextField
+        fullWidth
+        size="small"
+        variant="outlined"
+        // Ми прибрали sx звідси, бо тепер за ширину відповідає Box зверху
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <CalendarMonthIcon color="action" />
+            </InputAdornment>
+          ),
+        }}
+      />
+    }
+  />
+</Box>
+      
 
       <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: 2, position: 'relative' }}>
         {loading && (

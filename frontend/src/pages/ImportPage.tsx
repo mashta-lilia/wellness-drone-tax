@@ -6,9 +6,7 @@ import { FileUploader } from '../components/forms/FileUploader';
 const ImportPage = () => {
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom align="center">
-        Масовий імпорт замовлень
-      </Typography>
+      
       
       {/* Твоє Issue 5 */}
       <FileUploader />

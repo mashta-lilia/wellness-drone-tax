@@ -36,54 +36,106 @@ export const ManualOrderForm = () => {
     setResult(null); // Приховуємо результати для нового введення
   };
 
-  return (
-    <Box sx={{ mt: 4 }}>
-      {!result ? (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Нове замовлення</Typography>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Stack spacing={2}>
-              {/* Поля з валідацією */}
-              <TextField 
-                label="Широта (Latitude)" 
-                {...register("latitude", { required: "Обов'язкове поле", pattern: /^-?\d+(\.\d+)?$/ })}
-                error={!!errors.latitude} helperText={errors.latitude?.message}
-              />
-              <TextField 
-                label="Довгота (Longitude)" 
-                {...register("longitude", { required: "Обов'язкове pole", pattern: /^-?\d+(\.\d+)?$/ })}
-                error={!!errors.longitude} helperText={errors.longitude?.message}
-              />
-              <TextField 
-                label="Сума (Subtotal)" type="number"
-                {...register("subtotal", { required: true, min: { value: 0.01, message: "Має бути > 0" } })}
-                error={!!errors.subtotal} helperText={errors.subtotal?.message}
-              />
-              <Button type="submit" variant="contained" disabled={loading}>
-                {loading ? "Розрахунок..." : "Розрахувати податок"}
-              </Button>
-            </Stack>
-          </form>
-        </Paper>
-      ) : (
-        /* Блок результатів */
-        <Paper sx={{ p: 3, bgcolor: '#f0f7ff' }}>
-          <Typography variant="h6" color="primary">Результат розрахунку</Typography>
-          <Divider sx={{ my: 1 }} />
-          <Typography>Ставка: {((result?.composite_tax_rate || 0) * 100).toFixed(2)}%</Typography>
-<Typography>Сума податку: ${(result?.tax_amount || 0).toFixed(2)}</Typography>
-<Typography variant="h6">Разом: ${(result?.total_amount || 0).toFixed(2)}</Typography>
-          <Button onClick={handleReset} sx={{ mt: 2 }}>Створити ще одне</Button>
-        </Paper>
-      )}
+return (
+  <Box 
+    sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', // Центрує заголовок і форму по горизонталі
+      justifyContent: 'center', 
+      minHeight: '70vh', // Розміщує форму в зоні комфорту для очей
+      pb: 5 
+    }}
+  >
+    {/* ГОЛОВНИЙ ЗАГОЛОВОК СТОРІНКИ */}
+    <Typography 
+      variant="h4" 
+      sx={{ 
+        mb: 4, 
+        fontWeight: 'bold', 
+        color: '#333',
+        textAlign: 'center' 
+      }}
+    >
+      Ручне створення замовлення
+    </Typography>
 
-      {/* Skeleton Loaders */}
-      {loading && (
-        <Box sx={{ mt: 2 }}>
-          <Skeleton variant="text" width="60%" height={30} />
-          <Skeleton variant="rectangular" width="100%" height={100} sx={{ mt: 1 }} />
-        </Box>
-      )}
-    </Box>
-  );
-};
+    {!result ? (
+      <Paper 
+        sx={{ 
+          p: 4, 
+          bgcolor: '#fff', 
+          borderRadius: 3, 
+          boxShadow: 2, 
+          width: '100%',
+          maxWidth: 450, // Обмежуємо ширину для кращого вигляду по центру
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 3, fontWeight: 'medium', textAlign: 'center', color: 'text.secondary' }}>
+          Нове замовлення
+        </Typography>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Stack spacing={3}>
+            <TextField 
+              label="Широта (Latitude)" 
+              size="small"
+              fullWidth
+              {...register("latitude", { required: "Обов'язкове поле" })}
+              error={!!errors.latitude}
+              helperText={errors.latitude?.message}
+            />
+            <TextField 
+              label="Довгота (Longitude)" 
+              size="small"
+              fullWidth
+              {...register("longitude", { required: "Обов'язкове поле" })}
+              error={!!errors.longitude}
+              helperText={errors.longitude?.message}
+            />
+            <TextField 
+              label="Сума (Subtotal)" 
+              type="number"
+              size="small"
+              fullWidth
+              {...register("subtotal", { required: true, min: 0.01 })}
+              error={!!errors.subtotal}
+              helperText={errors.subtotal?.message}
+            />
+            <Button 
+              type="submit" 
+              variant="contained" 
+              disabled={loading}
+              sx={{ 
+                py: 1.2, 
+                fontWeight: 'bold', 
+                textTransform: 'none',
+                bgcolor: '#1976d2' // Синій колір MUI
+              }}
+            >
+              {loading ? "Розрахунок..." : "Розрахувати податок"}
+            </Button>
+          </Stack>
+        </form>
+      </Paper>
+    ) : (
+      /* Блок результатів розрахунку */
+      <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 3, width: '100%', maxWidth: 450, borderTop: '4px solid #1976d2' }}>
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>
+          Звіт замовлення
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Stack spacing={2} sx={{ textAlign: 'center' }}>
+          <Typography>Ставка: <b>{((result?.composite_tax_rate || 0) * 100).toFixed(2)}%</b></Typography>
+          <Typography>Сума податку: <b>${(result?.tax_amount || 0).toFixed(2)}</b></Typography>
+          <Typography variant="h4" sx={{ mt: 1, color: '#1976d2', fontWeight: 'bold' }}>
+            ${(result?.total_amount || 0).toFixed(2)}
+          </Typography>
+        </Stack>
+        <Button fullWidth variant="outlined" onClick={handleReset} sx={{ mt: 4, textTransform: 'none' }}>
+          Створити нове замовлення
+        </Button>
+      </Paper>
+    )}
+  </Box>
+);}
