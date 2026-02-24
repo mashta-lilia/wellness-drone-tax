@@ -1,13 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import orders
+from app.routers import orders, taxes  
 
-# --- Імпорти для бази даних ---
+# --- Импорты для базы данных ---
 from app.db.database import engine, Base
-from app.db.models import models  # <--- 🔥 Важливо: імпортуємо моделі, щоб код про них знав
+from app.db.models import models
 
-# --- 🔥 МАГІЯ: Створюємо таблиці автоматично при старті ---
-# Ця команда перевіряє, чи є таблиця 'orders', і якщо немає — створює її.
+# Создаем таблицы
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Wellness Drone Tax")
@@ -15,13 +14,14 @@ app = FastAPI(title="Wellness Drone Tax")
 # Налаштування CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Разрешает всем (включая фронтенд) стучаться к API
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(orders.router)
+app.include_router(taxes.router)  # <--- 2. Подключили роутер налогов!
 
 @app.get("/")
 def read_root():
