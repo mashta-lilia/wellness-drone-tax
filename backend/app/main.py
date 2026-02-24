@@ -1,28 +1,28 @@
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from app.services.import_service import ImportService
-from app.routers import taxes
+from fastapi.middleware.cors import CORSMiddleware
 from app.routers import orders
 
-# Этот блок кода управляет жизненным циклом приложения
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # --- Выполняется ДО того, как сервер начнет принимать запросы ---
-    import_service = ImportService()
-    
-    # Проверяем, существует ли уже файл, чтобы не скачивать его при каждом мелком рестарте сервера
-    if not import_service.file_path.exists():
-        print("CSV датасет не найден. Начинаем загрузку...")
-        await import_service.download_dataset()
-    else:
-        print("CSV датасет найден, загрузка при старте пропущена.")
-        
-    yield  # В этот момент сервер запускается и работает
-    
-    # --- Выполняется ПОСЛЕ остановки сервера (здесь можно закрывать соединения с БД) ---
-    print("Сервер останавливается...")
+# --- Імпорти для бази даних ---
+from app.db.database import engine, Base
+from app.db.models import models  # <--- 🔥 Важливо: імпортуємо моделі, щоб код про них знав
 
-# Подключаем lifespan к нашему приложению
-app = FastAPI(lifespan=lifespan, title="Tax API")
-app.include_router(taxes.router)
+# --- 🔥 МАГІЯ: Створюємо таблиці автоматично при старті ---
+# Ця команда перевіряє, чи є таблиця 'orders', і якщо немає — створює її.
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Wellness Drone Tax")
+
+# Налаштування CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(orders.router)
+
+@app.get("/")
+def read_root():
+    return {"message": "Wellness Drone Tax API is running!"}

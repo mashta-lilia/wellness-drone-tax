@@ -3,74 +3,60 @@ import httpx
 from pathlib import Path
 from functools import lru_cache
 
-class OutsideNYSException(Exception):
-    pass
-
 class TaxCalculatorService:
     def __init__(self):
-        base_dir = Path(__file__).resolve().parent.parent
+        # 1. Находим путь к файлу
+        base_dir = Path(__file__).resolve().parent.parent.parent
         self.dataset_path = base_dir / "utils" / "nys_tax_rates.csv"
-        self.tax_data = self._load_dataset()
+        
+        # 2. Загружаем данные в словарь для быстрого поиска: {"nassau": 0.08625, ...}
+        self.rates_cache = self._load_data()
 
-    def _load_dataset(self) -> list[dict]:
-        data = []
+    def _load_data(self) -> dict:
+        rates = {}
         try:
             with open(self.dataset_path, mode='r', encoding='utf-8') as file:
                 reader = csv.DictReader(file)
-                # Колонки в реальном датасете могут называться иначе (например, "Jurisdiction" и "Tax Rate")
-                # Мы сохраняем сырые строки, чтобы потом искать по ним
                 for row in reader:
-                    data.append(row)
+                    # Ключ - название округа (маленькими буквами), значение - число
+                    county = row["County"].strip().lower()
+                    rate = float(row["Rate"])
+                    rates[county] = rate
+            print(f"Загружено налоговых ставок: {len(rates)}")
         except FileNotFoundError:
-            print("Датасет еще не скачан.")
-        return data
+            print("ОШИБКА: Файл nys_tax_rates.csv не найден!")
+        return rates
 
-    def reload_data(self):
-        self.tax_data = self._load_dataset()
+    async def get_tax_rate(self, lat: float, lon: float) -> float:
+        """
+        Главный метод: по координатам возвращает % налога (например 0.08875)
+        """
+        # 1. Узнаем, что за округ, через OpenStreetMap
+        county_name = await self._get_county_from_osm(lat, lon)
+        print(f"Координаты {lat},{lon} -> Округ: {county_name}")
 
-    async def _get_county_by_coords(self, lat: float, lon: float) -> str:
-        """Использует бесплатное API OpenStreetMap для получения адреса по координатам."""
+        # 2. Ищем в нашем словаре (безопасно, в нижнем регистре)
+        # Если не нашли, возвращаем дефолт 8.875% (как в NYC)
+        return self.rates_cache.get(county_name.lower(), 0.08875)
+
+    async def _get_county_from_osm(self, lat: float, lon: float) -> str:
+        """Стучится в API и получает название округа"""
         url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}"
-        headers = {"User-Agent": "NYSTaxCalculator/1.0"} # OSM требует указывать User-Agent
+        headers = {"User-Agent": "WellnessDroneTax/1.0"} 
         
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-            
-            address = data.get("address", {})
-            state = address.get("state")
-            
-            if state != "New York":
-                raise OutsideNYSException(f"Координаты находятся в штате {state}, а не в Нью-Йорке.")
+            try:
+                resp = await client.get(url, headers=headers, timeout=10.0)
+                data = resp.json()
                 
-            # Ищем округ (County) или город
-            county = address.get("county") or address.get("city")
-            if not county:
-                raise ValueError("Не удалось определить округ по этим координатам.")
+                address = data.get("address", {})
+                # OSM может вернуть "Kings County", нам нужно просто "Kings"
+                county = address.get("county") or address.get("city") or "New York"
                 
-            # Убираем слово "County" для более легкого поиска в CSV (например, "Erie County" -> "Erie")
-            return county.replace(" County", "").strip()
-
-    async def get_raw_tax_data(self, latitude: float, longitude: float) -> dict:
-        if not self.tax_data:
-            raise RuntimeError("Датасет пуст. Сначала обновите его через /update-dataset.")
-
-        # 1. Получаем округ по координатам
-        county_name = await self._get_county_by_coords(latitude, longitude)
-        print(f"Определен округ: {county_name}")
-
-        # 2. Ищем округ в нашем скачанном реальном датасете
-        # Так как мы не знаем точных названий колонок заранее, ищем совпадение названия округа в значениях
-        for row in self.tax_data:
-            # Проверяем все текстовые значения в строке (ignore case)
-            if any(county_name.lower() in str(val).lower() for val in row.values()):
-                row["raw_source"] = "nys_official_dataset"
-                row["geocoded_county"] = county_name
-                return row
-                
-        # Если не нашли точное совпадение
-        return {"error": f"Округ {county_name} найден по координатам, но отсутствует в скачанном датасете налогов."}
+                return county.replace(" County", "").strip()
+            except Exception as e:
+                print(f"Ошибка OSM: {e}")
+                return "New York" # Фолбэк, если API упал
 
 @lru_cache()
 def get_tax_service() -> TaxCalculatorService:

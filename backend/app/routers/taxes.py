@@ -49,34 +49,3 @@ async def calculate_tax(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-@router.get("/orders", response_model=OrdersListResponse)
-def get_orders(
-    db: Session = Depends(get_db),
-    limit: int = Query(10, ge=1, le=100), 
-    offset: int = Query(0, ge=0),         
-    start_date: Optional[datetime] = None, 
-    end_date: Optional[datetime] = None,   
-    sort_by: str = Query("timestamp", regex="^(timestamp|subtotal|tax_amount|total_amount)$"),
-    order: str = Query("desc", regex="^(asc|desc)$") 
-):
-    query = db.query(Order)
-
-    if start_date:
-        query = query.filter(Order.timestamp >= start_date)
-    if end_date:
-        query = query.filter(Order.timestamp <= end_date)
-
-    total_count = query.count()
-
-    sort_attr = getattr(Order, sort_by)
-    if order == "desc":
-        query = query.order_by(desc(sort_attr))
-    else:
-        query = query.order_by(asc(sort_attr))
-
-    orders = query.offset(offset).limit(limit).all()
-
-    return {
-        "total_count": total_count,
-        "items": orders
-    }
