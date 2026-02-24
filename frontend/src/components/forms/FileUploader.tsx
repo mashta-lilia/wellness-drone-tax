@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Box, Button, Typography, Paper, CircularProgress } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ImportCSVResponse } from '../../types/order';
+import type { ImportCSVResponse } from '../../types/order';
 
 export const FileUploader = () => {
   const [file, setFile] = useState<File | null>(null);

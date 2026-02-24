@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, Button, TextField, Typography, Paper, Skeleton, Stack, Divider } from '@mui/material';
 import { createManualOrder } from '../../api/orders';
-import { Order } from '../../types/order';
+import type { Order } from '../../types/order';
 import { toast } from 'react-toastify';
 
 export const ManualOrderForm = () => {
@@ -70,9 +70,9 @@ export const ManualOrderForm = () => {
         <Paper sx={{ p: 3, bgcolor: '#f0f7ff' }}>
           <Typography variant="h6" color="primary">Результат розрахунку</Typography>
           <Divider sx={{ my: 1 }} />
-          <Typography>Ставка: {(result.composite_tax_rate * 100).toFixed(2)}%</Typography>
-          <Typography>Сума податку: ${result.tax_amount.toFixed(2)}</Typography>
-          <Typography variant="h6">Разом: ${result.total_amount.toFixed(2)}</Typography>
+          <Typography>Ставка: {((result?.composite_tax_rate || 0) * 100).toFixed(2)}%</Typography>
+<Typography>Сума податку: ${(result?.tax_amount || 0).toFixed(2)}</Typography>
+<Typography variant="h6">Разом: ${(result?.total_amount || 0).toFixed(2)}</Typography>
           <Button onClick={handleReset} sx={{ mt: 2 }}>Створити ще одне</Button>
         </Paper>
       )}
