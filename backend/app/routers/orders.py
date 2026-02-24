@@ -5,6 +5,10 @@ from typing import Optional
 from datetime import datetime, timezone
 import uuid
 
+import csv
+import io
+from fastapi.responses import StreamingResponse
+
 from app.db.database import get_db
 from app.db.models import Order 
 from app.schemas.order import OrderCreate, OrderResponse, PaginatedOrdersResponse
@@ -111,3 +115,70 @@ async def create_order(
 
     # 4. Повертаємо збережений об'єкт (201 Created)
     return new_order
+
+@router.get("/export", summary="Експорт замовлень у CSV")
+async def export_orders(
+    db: Session = Depends(get_db),
+    sort_by: str = Query("timestamp", description="Поле для сортування"),
+    order: str = Query("desc", pattern="^(asc|desc)$", description="Напрямок: asc або desc"),
+    start_date: Optional[datetime] = Query(None, description="Початкова дата (YYYY-MM-DDTHH:MM:SS)"),
+    end_date: Optional[datetime] = Query(None, description="Кінцева дата (YYYY-MM-DDTHH:MM:SS)")
+):
+    """
+    Генерує та повертає CSV файл із замовленнями на основі переданих фільтрів.
+    Ігнорує пагінацію, щоб вивантажити всі відповідні записи.
+    """
+    # 1. Формуємо базовий запит
+    query = db.query(Order)
+
+    # 2. Фільтрація за датами (така ж, як і в GET /orders)
+    if start_date:
+        query = query.filter(Order.timestamp >= start_date)
+    if end_date:
+        query = query.filter(Order.timestamp <= end_date)
+
+    # 3. Сортування
+    if hasattr(Order, sort_by):
+        sort_column = getattr(Order, sort_by)
+        if order == "desc":
+            query = query.order_by(desc(sort_column))
+        else:
+            query = query.order_by(asc(sort_column))
+
+    # 4. Отримуємо ВСІ записи, які пройшли фільтр (без .limit() та .offset())
+    orders = query.all()
+
+    # 5. Генеруємо CSV файл у пам'яті (без збереження на жорсткий диск)
+    stream = io.StringIO()
+    csv_writer = csv.writer(stream)
+
+    # Записуємо заголовки колонок (за вашим завданням)
+    csv_writer.writerow([
+        "ID", "lat", "lon", "subtotal", 
+        "composite_tax_rate", "tax_amount", "total_amount", "date"
+    ])
+
+    # Записуємо дані по кожному замовленню
+    for order_obj in orders:
+        # Форматуємо дату для зручного читання в Excel
+        date_str = order_obj.timestamp.strftime("%Y-%m-%d %H:%M:%S") if order_obj.timestamp else ""
+        
+        csv_writer.writerow([
+            order_obj.id,
+            order_obj.latitude,
+            order_obj.longitude,
+            order_obj.subtotal,
+            order_obj.composite_tax_rate,
+            order_obj.tax_amount,
+            order_obj.total_amount,
+            date_str
+        ])
+
+    # Повертаємо курсор віртуального файлу на початок, щоб FastAPI міг його прочитати
+    stream.seek(0)
+
+    # 6. Повертаємо файл клієнту з правильними HTTP-заголовками
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = 'attachment; filename="orders_export.csv"'
+    
+    return response
