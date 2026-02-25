@@ -3,7 +3,7 @@ import {
   Grid, Typography, Box, Collapse, IconButton, Chip,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
   TablePagination, CircularProgress, TextField, InputAdornment,
-  TableSortLabel // Додано для клікабельних заголовків
+  TableSortLabel 
 } from '@mui/material';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -16,12 +16,13 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SummaryCard from '../components/SummaryCard';
 
-// Тип для напрямку сортування
 type OrderDirection = 'asc' | 'desc';
 
-// Компонент рядка таблиці
 const OrderRow = ({ order }: { order: any }) => {
   const [open, setOpen] = React.useState(false);
+
+  // Безпечне отримання значень з breakdown
+  const breakdown = order.breakdown || {};
 
   return (
     <React.Fragment>
@@ -31,11 +32,12 @@ const OrderRow = ({ order }: { order: any }) => {
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell>{`${order.lat.toFixed(4)} / ${order.lon.toFixed(4)}`}</TableCell>
-        <TableCell align="right">${order.subtotal.toFixed(2)}</TableCell>
+        {/* Виправлено назви полів на latitude та longitude */}
+        <TableCell>{`${order.latitude?.toFixed(4) || 0} / ${order.longitude?.toFixed(4) || 0}`}</TableCell>
+        <TableCell align="right">${order.subtotal?.toFixed(2)}</TableCell>
         <TableCell align="right">{(order.composite_tax_rate * 100).toFixed(3)}%</TableCell>
-        <TableCell align="right">${order.tax_amount.toFixed(2)}</TableCell>
-        <TableCell align="right" sx={{ fontWeight: 'bold' }}>${order.total_amount.toFixed(2)}</TableCell>
+        <TableCell align="right">${order.tax_amount?.toFixed(2)}</TableCell>
+        <TableCell align="right" sx={{ fontWeight: 'bold' }}>${order.total_amount?.toFixed(2)}</TableCell>
       </TableRow>
       
       <TableRow>
@@ -45,23 +47,29 @@ const OrderRow = ({ order }: { order: any }) => {
               <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 'bold' }}>
                 Деталізація податків (Breakdown)
               </Typography>
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption">State: {(order.breakdown.state_rate * 100).toFixed(2)}%</Typography>
+              
+              {/* Перевірка наявності даних у breakdown */}
+              {breakdown.info ? (
+                <Typography variant="body2" color="textSecondary">{breakdown.info}</Typography>
+              ) : (
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 3 }}>
+                    <Typography variant="caption">State: {((breakdown.state_rate || 0) * 100).toFixed(2)}%</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 3 }}>
+                    <Typography variant="caption">County: {((breakdown.county_rate || 0) * 100).toFixed(2)}%</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 3 }}>
+                    <Typography variant="caption">City: {((breakdown.city_rate || 0) * 100).toFixed(2)}%</Typography>
+                  </Grid>
+                  <Grid size={{ xs: 3 }}>
+                    <Typography variant="caption">Special: {((breakdown.special_rates || 0) * 100).toFixed(2)}%</Typography>
+                  </Grid>
                 </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption">County: {(order.breakdown.county_rate * 100).toFixed(2)}%</Typography>
-                </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption">City: {(order.breakdown.city_rate * 100).toFixed(2)}%</Typography>
-                </Grid>
-                <Grid size={{ xs: 3 }}>
-                  <Typography variant="caption">Special: {(order.breakdown.special_rates * 100).toFixed(2)}%</Typography>
-                </Grid>
-              </Grid>
+              )}
               
               <Box sx={{ mt: 2 }}>
-                {order.jurisdictions.map((j: string) => (
+                {order.jurisdictions?.map((j: string) => (
                   <Chip key={j} label={j} size="small" color="primary" variant="outlined" sx={{ mr: 1 }} />
                 ))}
               </Box>
@@ -78,48 +86,47 @@ const OrdersListPage = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   
-  // 1. Стан для фільтрів та сортування
   const [searchId, setSearchId] = useState('');
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [order, setOrder] = useState<OrderDirection>('asc');
   const [orderBy, setOrderBy] = useState<string>('total_amount');
 
+  // Статистику можна було б теж брати з API, але поки лишаємо як є
   const stats = {
-    totalOrders: 154,
-    totalTax: 12540.5,
-    averageRate: 18.5
+    totalOrders: totalCount, 
+    totalTax: orders.reduce((sum, o) => sum + (o.tax_amount || 0), 0),
+    averageRate: orders.length > 0 
+      ? (orders.reduce((sum, o) => sum + (o.composite_tax_rate || 0), 0) / orders.length * 100).toFixed(2) 
+      : 0
   };
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // 2. Обробник зміни сортування
   const handleRequestSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
-    setPage(0); // Скидаємо на першу сторінку при зміні сортування
+    setPage(0);
   };
 
-  // 3. Оновлена функція запиту з усіма параметрами
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      // Формуємо URL з пагінацією, пошуком та сортуванням
-      let url = `http://localhost:5000/api/orders?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
+      // URL тепер завжди використовує порт 8000 та префікс /api/
+      let url = `http://localhost:8000/api/orders/?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
       
-      if (searchId) {
-        url += `&search=${searchId}`;
-      }
+      if (searchId) url += `&search=${searchId}`;
       if (filterDate) {
-      const formattedDate = filterDate.toISOString().split('T')[0];
-      url += `&date=${formattedDate}`;
-    }
+        const formattedDate = filterDate.toISOString().split('T')[0];
+        url += `&date=${formattedDate}`;
+      }
 
       const response = await fetch(url);
       const data = await response.json();
       
-      setOrders(data.orders || []);
+      // КЛЮЧОВЕ ВИПРАВЛЕННЯ: беремо дані з .items
+      setOrders(data.items || []);
       setTotalCount(data.total || 0);
     } catch (error) {
       console.error("Помилка при завантаженні даних:", error);
@@ -128,7 +135,6 @@ const OrdersListPage = () => {
     }
   };
 
-  // 4. Слідкуємо за всіма змінами стейту
   useEffect(() => {
     fetchOrders();
   }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
@@ -144,7 +150,7 @@ const OrdersListPage = () => {
 
   return (
     <Box sx={{ pb: 5 }}>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center'  }}>
+      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
         Головний список замовлень
       </Typography>
 
@@ -153,70 +159,63 @@ const OrdersListPage = () => {
           <SummaryCard title="Оброблено замовлень" value={stats.totalOrders.toString()} icon={<ShoppingCartIcon />} />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <SummaryCard title="Загальна сума податків" value={`$${stats.totalTax.toLocaleString()}`} icon={<AttachMoneyIcon />} color="success.main" />
+          <SummaryCard title="Сума податків (на сторінці)" value={`$${stats.totalTax.toLocaleString()}`} icon={<AttachMoneyIcon />} color="success.main" />
         </Grid>
         <Grid size={{ xs: 12, sm: 4 }}>
-          <SummaryCard title="Середня ставка" value={`${stats.averageRate}%`} icon={<PercentIcon />} color="warning.main" />
+          <SummaryCard title="Сер. ставка (на сторінці)" value={`${stats.averageRate}%`} icon={<PercentIcon />} color="warning.main" />
         </Grid>
       </Grid>
 
-      {/* ПАНЕЛЬ ФІЛЬТРІВ */}
-<Box sx={{ 
-  mb: 3, p: 2, bgcolor: '#fff', borderRadius: 2, boxShadow: 1, 
-  display: 'flex', gap: 2,
-  // ЦЕЙ РЯДОК — МАГІЯ: він знаходить внутрішню обгортку календаря і розтягує її
-  '& .react-datepicker-wrapper': { width: '100%', maxWidth: '400px' } 
-}}>
-  
-  {/* Твій існуючий пошук за ID (400px) */}
-  <TextField
-    fullWidth
-    size="small"
-    variant="outlined"
-    placeholder="Пошук за ID замовлення..."
-    value={searchId}
-    onChange={(e) => {
-      setSearchId(e.target.value);
-      setPage(0);
-    }}
-    sx={{ maxWidth: 400 }}
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <SearchIcon color="action" />
-        </InputAdornment>
-      ),
-    }}
-  />
+      <Box sx={{ 
+        mb: 3, p: 2, bgcolor: '#fff', borderRadius: 2, boxShadow: 1, 
+        display: 'flex', gap: 2,
+        '& .react-datepicker-wrapper': { width: '100%', maxWidth: '400px' } 
+      }}>
+        <TextField
+          fullWidth
+          size="small"
+          variant="outlined"
+          placeholder="Пошук за ID замовлення..."
+          value={searchId}
+          onChange={(e) => {
+            setSearchId(e.target.value);
+            setPage(0);
+          }}
+          sx={{ maxWidth: 400 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
 
-  {/* Твій календар (тепер він точно буде 400px) */}
-  <DatePicker
-    selected={filterDate}
-    onChange={(date: Date | null) => { 
-      setFilterDate(date);
-      setPage(0);
-    }}
-    placeholderText="Фільтр за датою..."
-    isClearable
-    dateFormat="yyyy-MM-dd"
-    customInput={
-      <TextField
-        fullWidth
-        size="small"
-        variant="outlined"
-        // Ми прибрали sx звідси, бо тепер за ширину відповідає Box зверху
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <CalendarMonthIcon color="action" />
-            </InputAdornment>
-          ),
-        }}
-      />
-    }
-  />
-</Box>
-      
+        <DatePicker
+          selected={filterDate}
+          onChange={(date: Date | null) => { 
+            setFilterDate(date);
+            setPage(0);
+          }}
+          placeholderText="Фільтр за датою..."
+          isClearable
+          dateFormat="yyyy-MM-dd"
+          customInput={
+            <TextField
+              fullWidth
+              size="small"
+              variant="outlined"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarMonthIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          }
+        />
+      </Box>
 
       <TableContainer component={Paper} sx={{ boxShadow: 3, borderRadius: 2, position: 'relative' }}>
         {loading && (
@@ -235,7 +234,6 @@ const OrdersListPage = () => {
               <TableCell />
               <TableCell sx={{ fontWeight: 'bold' }}>Координати (lat/lon)</TableCell>
               
-              {/* Клікабельні заголовки */}
               <TableCell align="right">
                 <TableSortLabel
                   active={orderBy === 'subtotal'}

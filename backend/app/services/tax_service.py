@@ -17,6 +17,17 @@ class TaxCalculatorService:
         
         # 2. Загружаем данные в словарь
         self.rates_cache = self._load_data()
+        
+    async def get_tax_rate(self, lat: float, lon: float) -> float:
+        """Возвращает только процентную ставку налога для координат."""
+        # Проверяем границы штата (как и в основном методе)
+        if not (NY_MIN_LAT <= lat <= NY_MAX_LAT and NY_MIN_LON <= lon <= NY_MAX_LON):
+            # Если вне NY, возвращаем базовую ставку или можно кинуть ошибку 400
+            return 0.08875 
+        
+        county_name = await self._get_county_from_osm(lat, lon)
+        # Ищем ставку в кеше, если нет — возвращаем 8.875% (NYC)
+        return self.rates_cache.get(county_name.lower(), 0.08875)
 
     def _load_data(self) -> dict:
         rates = {}
@@ -91,6 +102,7 @@ class TaxCalculatorService:
             except Exception as e:
                 print(f"⚠️ Ошибка запроса к OSM: {e}")
                 return "New York" # Фолбэк
+            
 
 @lru_cache()
 def get_tax_service() -> TaxCalculatorService:

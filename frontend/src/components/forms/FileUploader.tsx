@@ -35,7 +35,7 @@ export const FileUploader = () => {
 
     try {
       // Відправка на бекенд
-      const { data } = await axios.post<ImportCSVResponse>('http://localhost:8000/orders/import', formData);
+      const { data } = await axios.post<ImportCSVResponse>('http://localhost:8000/api/orders/import', formData);
       
       toast.success(`Успішно! Імпортовано ${data.success_count} замовлень.`);
       setFile(null); // Очищення форми
