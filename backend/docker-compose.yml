@@ -5,8 +5,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:////app/sql_app.db  # Додали один / для абсолютного шляху
+      - DATABASE_URL=sqlite:////app/wellness_delivery.db
       - PYTHONUNBUFFERED=1
     volumes:
-      - ./sql_app.db:/app/sql_app.db
+      - ./wellness_delivery.db:/app/wellness_delivery.db
     restart: always
