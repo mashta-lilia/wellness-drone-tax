@@ -1,15 +1,15 @@
 import React from 'react';
 import { Typography, Box } from '@mui/material';
+// Підключаємо твій компонент (перевір шлях, якщо папка src/components)
+import { FileUploader } from '../components/forms/FileUploader';
 
 const ImportPage = () => {
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Завантаження CSV (Import)
-      </Typography>
-      <Typography variant="body1">
-        Тут буде функціонал для вибору та завантаження файлів.
-      </Typography>
+      
+      
+      {/* Твоє Issue 5 */}
+      <FileUploader />
     </Box>
   );
 };

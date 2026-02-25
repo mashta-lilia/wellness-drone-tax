@@ -1,15 +1,15 @@
 import React from 'react';
 import { Typography, Box } from '@mui/material';
+// Підключаємо твою форму
+import { ManualOrderForm } from '../components/forms/ManualOrderForm';
 
 const CreateOrderPage = () => {
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Нове замовлення (Create)
-      </Typography>
-      <Typography variant="body1">
-        Тут буде форма для ручного введення даних замовлення.
-      </Typography>
+      
+      
+      {/* Твоє Issue 6 */}
+      <ManualOrderForm />
     </Box>
   );
 };
