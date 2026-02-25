@@ -3,31 +3,21 @@ import httpx
 from pathlib import Path
 from functools import lru_cache
 from fastapi import HTTPException
+from decimal import Decimal, ROUND_HALF_UP
 
-# Границы штата Нью-Йорк для валидации координат
-NY_MIN_LAT, NY_MAX_LAT = 40.47, 45.02
-NY_MIN_LON, NY_MAX_LON = -79.77, -71.78
+# Список округов, входящих в транспортную зону MCTD (Metropolitan Commuter Transportation District)
+# В них применяется дополнительный специальный налог 0.375%
+MCTD_COUNTIES = {
+    "new york", "bronx", "kings", "queens", "richmond", 
+    "dutchess", "nassau", "orange", "putnam", "rockland", 
+    "suffolk", "westchester"
+}
 
 class TaxCalculatorService:
     def __init__(self):
-        # 1. Находим путь к файлу (app/services -> app -> utils)
-        # Используем parent.parent, чтобы выйти из 'services' в 'app'
         base_dir = Path(__file__).resolve().parent.parent
         self.dataset_path = base_dir / "utils" / "nys_tax_rates.csv"
-        
-        # 2. Загружаем данные в словарь
         self.rates_cache = self._load_data()
-        
-    async def get_tax_rate(self, lat: float, lon: float) -> float:
-        """Возвращает только процентную ставку налога для координат."""
-        # Проверяем границы штата (как и в основном методе)
-        if not (NY_MIN_LAT <= lat <= NY_MAX_LAT and NY_MIN_LON <= lon <= NY_MAX_LON):
-            # Если вне NY, возвращаем базовую ставку или можно кинуть ошибку 400
-            return 0.08875 
-        
-        county_name = await self._get_county_from_osm(lat, lon)
-        # Ищем ставку в кеше, если нет — возвращаем 8.875% (NYC)
-        return self.rates_cache.get(county_name.lower(), 0.08875)
 
     def _load_data(self) -> dict:
         rates = {}
@@ -35,52 +25,25 @@ class TaxCalculatorService:
             with open(self.dataset_path, mode='r', encoding='utf-8') as file:
                 reader = csv.DictReader(file)
                 for row in reader:
-                    # Ключ - название округа (маленькими буквами)
-                    # "Albany County" -> "albany"
                     county_raw = row["County"].replace(" County", "").strip().lower()
-                    rate = float(row["Rate"])
-                    rates[county_raw] = rate
+                    rates[county_raw] = float(row["Rate"])
             print(f"✅ Загружено налоговых ставок: {len(rates)}")
         except FileNotFoundError:
             print(f"❌ ОШИБКА: Файл не найден по пути {self.dataset_path}")
         return rates
 
-    async def calculate_tax(self, amount: float, lat: float, lon: float) -> dict:
+    async def _get_location_data(self, lat: float, lon: float) -> dict:
         """
-        Основной метод, который вызывает контроллер.
-        Возвращает полную структуру с расчетами.
+        Использует API Nominatim для точного определения локации.
+        Возвращает штат, округ и город.
         """
-        # 1. ПРОВЕРКА ГРАНИЦ (Валидация)
-        if not (NY_MIN_LAT <= lat <= NY_MAX_LAT and NY_MIN_LON <= lon <= NY_MAX_LON):
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Coordinates ({lat}, {lon}) are outside of New York State."
-            )
-
-        # 2. Получаем ставку (через OSM или дефолт)
-        county_name = await self._get_county_from_osm(lat, lon)
-        
-        # Ищем ставку (фолбэк на NYC 8.875%, если округ не найден в CSV)
-        tax_rate = self.rates_cache.get(county_name.lower(), 0.08875)
-
-        # 3. Математика
-        tax_amount = round(amount * tax_rate, 2)
-        total_amount = round(amount + tax_amount, 2)
-
-        return {
-            "tax_amount": tax_amount,
-            "total_amount": total_amount,
-            "rate": tax_rate,
-            "county": county_name
-        }
-    
-    async def _get_county_from_osm(self, lat: float, lon: float) -> str:
-        """Запрашивает OpenStreetMap для получения названия округа"""
         url = "https://nominatim.openstreetmap.org/reverse"
         params = {
             "format": "json",
             "lat": lat,
-            "lon": lon
+            "lon": lon,
+            "zoom": 10, # Уровень детализации до города/округа
+            "addressdetails": 1
         }
         headers = {"User-Agent": "WellnessDroneTax/1.0"} 
         
@@ -88,21 +51,95 @@ class TaxCalculatorService:
             try:
                 resp = await client.get(url, params=params, headers=headers, timeout=10.0)
                 if resp.status_code != 200:
-                    print(f"⚠️ OSM вернул статус {resp.status_code}")
-                    return "New York"
+                    raise HTTPException(status_code=503, detail="Сервис геокодинга недоступен")
 
                 data = resp.json()
+                if "error" in data:
+                     raise HTTPException(status_code=400, detail="Невозможно определить локацию по координатам (возможно, точка в океане)")
+
                 address = data.get("address", {})
                 
-                # Приоритет: county -> city -> state_district
-                county = address.get("county") or address.get("city") or "New York"
-                
-                # Убираем " County" для чистого поиска в CSV
-                return county.replace(" County", "").strip()
-            except Exception as e:
-                print(f"⚠️ Ошибка запроса к OSM: {e}")
-                return "New York" # Фолбэк
-            
+                # Извлекаем нужные данные
+                state = address.get("state")
+                county = address.get("county", address.get("city", "New York"))
+                county_clean = county.replace(" County", "").strip()
+                city = address.get("city", address.get("town", address.get("village", "")))
+
+                return {
+                    "state": state,
+                    "county": county_clean,
+                    "city": city,
+                    "raw_address": address
+                }
+
+            except httpx.RequestError:
+                raise HTTPException(status_code=503, detail="Ошибка сети при обращении к сервису геокодинга")
+
+
+    async def calculate_full_tax_info(self, lat: float, lon: float, subtotal: float) -> dict:
+        """
+        Главный метод. Строго реализует алгоритм расчета из бизнес-требований.
+        """
+        # 1. Точная гео-валидация через внешний сервис
+        location = await self._get_location_data(lat, lon)
+        
+        if location.get("state") != "New York":
+            raise HTTPException(
+                status_code=400, 
+                detail="Доставка возможна только в пределах штата Нью-Йорк"
+            )
+
+        county_name_lower = location["county"].lower()
+
+        # 2. Определение базовых ставок (Breakdown конструктор)
+        state_rate = Decimal('0.04') # Базовый налог штата NY всегда 4%
+        
+        # Специальный налог (MCTD)
+        special_rates = Decimal('0.00375') if county_name_lower in MCTD_COUNTIES else Decimal('0.0')
+        
+        city_rate = Decimal('0.0') # В NY большинство городов не имеют своего налога, налог идет на уровне округа
+        
+        # Получаем общую ставку из CSV (если нет в базе, по умолчанию берем NYC 8.875%)
+        total_csv_rate = Decimal(str(self.rates_cache.get(county_name_lower, 0.08875)))
+        
+        # Высчитываем налог округа (Округ = Общий - Штат - Спец)
+        # Если в твоем CSV лежат уже разбитые ставки, этот блок нужно будет адаптировать
+        county_rate = total_csv_rate - state_rate - special_rates
+        if county_rate < 0: 
+            county_rate = Decimal('0.0')
+
+        # 3. Расчет композитной ставки
+        # composite_tax_rate = state_rate + county_rate + city_rate + special_rates
+        composite_tax_rate = state_rate + county_rate + city_rate + special_rates
+
+        # 4. Расчет суммы налога (с округлением до 2 знаков / центов)
+        subtotal_dec = Decimal(str(subtotal))
+        
+        # tax_amount = subtotal * composite_tax_rate
+        raw_tax_amount = subtotal_dec * composite_tax_rate
+        tax_amount = raw_tax_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        # 5. Итоговая сумма к оплате
+        # total_amount = subtotal + tax_amount
+        total_amount = subtotal_dec + tax_amount
+
+        # Собираем список примененных юрисдикций
+        jurisdictions = ["New York State", f"{location['county']} County"]
+        if special_rates > 0:
+            jurisdictions.append("MCTD (Special)")
+
+        return {
+            "composite_tax_rate": float(composite_tax_rate),
+            "tax_amount": float(tax_amount),
+            "total_amount": float(total_amount),
+            "breakdown": {
+                "state_rate": float(state_rate),
+                "county_rate": float(county_rate),
+                "city_rate": float(city_rate),
+                "special_rates": float(special_rates)
+            },
+            "jurisdictions": jurisdictions
+        }
 
 @lru_cache()
 def get_tax_service() -> TaxCalculatorService:

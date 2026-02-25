@@ -15,27 +15,31 @@ from app.services.tax_service import TaxCalculatorService, get_tax_service
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
 # --- 1. РУЧНЕ СТВОРЕННЯ ЗАМОВЛЕННЯ ---
+# app/routers/orders.py
+
 @router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
     order_in: OrderCreate,
     db: Session = Depends(get_db),
     tax_service: TaxCalculatorService = Depends(get_tax_service)
 ):
-    tax_rate = await tax_service.get_tax_rate(order_in.latitude, order_in.longitude)
-    tax_amount = round(order_in.subtotal * tax_rate, 2)
-    total_amount = round(order_in.subtotal + tax_amount, 2)
+    # 1. Получаем полные данные по налогам (сработает 400 ошибка, если точка вне NY)
+    tax_data = await tax_service.calculate_full_tax_info(
+        lat=order_in.latitude, 
+        lon=order_in.longitude, 
+        subtotal=order_in.subtotal
+    )
     
+    # 2. Сохраняем все в базу
     new_order = Order(
-        id=str(uuid.uuid4()),
-        timestamp=datetime.now(timezone.utc),
         latitude=order_in.latitude,
         longitude=order_in.longitude,
         subtotal=order_in.subtotal,
-        composite_tax_rate=tax_rate,
-        tax_amount=tax_amount,
-        total_amount=total_amount,
-        breakdown={"info": "Manual entry"},
-        jurisdictions=[]
+        composite_tax_rate=tax_data["composite_tax_rate"],
+        tax_amount=tax_data["tax_amount"],
+        total_amount=tax_data["total_amount"],
+        breakdown=tax_data["breakdown"],         # Четкая структура с 4 полями
+        jurisdictions=tax_data["jurisdictions"]  # Массив названий
     )
 
     db.add(new_order)
