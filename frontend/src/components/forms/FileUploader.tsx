@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Box, Button, Typography, Paper, CircularProgress, Stack, Chip, Divider, Alert, AlertTitle, List, ListItem, ListItemText } from '@mui/material';
-import axios from 'axios';
+import { importOrdersCSV } from '../../api/orders'; // Використовуємо наш сервіс
 import { toast } from 'react-toastify';
 import type { ImportCSVResponse } from '../../types/order';
 
@@ -12,7 +12,6 @@ export const FileUploader = () => {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
-    
     if (!selectedFile) return;
 
     // 1. Перевірка формату
@@ -23,8 +22,7 @@ export const FileUploader = () => {
 
     // 2. Перевірка розміру файлу (максимум 5 МБ)
     const MAX_SIZE_MB = 5;
-    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
-    if (selectedFile.size > MAX_SIZE_BYTES) {
+    if (selectedFile.size > MAX_SIZE_MB * 1024 * 1024) {
       toast.error(`Помилка: файл занадто великий (максимум ${MAX_SIZE_MB} МБ)`);
       return;
     }
@@ -36,7 +34,8 @@ export const FileUploader = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/csv': ['.csv'] },
-    multiple: false
+    multiple: false,
+    disabled: loading // Блокуємо дропзону під час завантаження
   });
 
   const handleUpload = async () => {
@@ -44,24 +43,24 @@ export const FileUploader = () => {
     setLoading(true);
     setResult(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const { data } = await axios.post<ImportCSVResponse>('http://localhost:8000/api/orders/import', formData);
+      // Використовуємо наш централізований сервіс (без хардкоду портів!)
+      const data = await importOrdersCSV(file);
       setResult(data);
       
       if (data.error_count === 0) {
         toast.success(`Успішно! Імпортовано ${data.success_count} замовлень.`);
       } else if (data.success_count > 0) {
-        toast.warning(`Завантажено частково: ${data.success_count} успішно, ${data.error_count} з помилками.`);
+        toast.warning(`Завантажено частково: ${data.success_count} успішно, ${data.error_count} помилок.`);
       } else {
-        toast.error("Не вдалося завантажити жодного замовлення з файлу.");
+        toast.error("У файлі не знайдено коректних даних.");
       }
       
       setFile(null);
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Помилка сервера при імпорті");
+    } catch (err: unknown) {
+      // Пункт №2: Сувора типізація помилок без any
+      const error = err as Error;
+      toast.error(error.message || "Помилка при імпорті файлу");
     } finally {
       setLoading(false);
     }
@@ -70,59 +69,63 @@ export const FileUploader = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', pb: 5 }}>
       <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
-        Завантаження замовлень (CSV)
+        Імпорт замовлень
       </Typography>
 
       <Paper 
         {...getRootProps()} 
         sx={{ 
-          p: 6, textAlign: 'center', cursor: 'pointer', border: '2px dashed #1976d2', 
+          p: 6, textAlign: 'center', cursor: loading ? 'not-allowed' : 'pointer', 
+          border: '2px dashed #1976d2', 
           bgcolor: isDragActive ? '#f0f7ff' : '#fff', borderRadius: 3, boxShadow: 2, 
-          width: '100%', maxWidth: 450, transition: 'all 0.2s ease-in-out',
-          '&:hover': { borderColor: '#115293', bgcolor: '#fafafa' }
+          width: '100%', maxWidth: 450, opacity: loading ? 0.6 : 1,
+          transition: 'all 0.2s ease-in-out',
+          '&:hover': { borderColor: !loading ? '#115293' : '#1976d2' }
         }}
       >
         <input {...getInputProps()} />
         <Typography variant="h6" sx={{ color: file ? '#1976d2' : '#666', fontWeight: 'medium' }}>
           {file ? file.name : "Перетягніть CSV сюди"}
         </Typography>
-        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>або клікніть для вибору файлу</Typography>
+        {!file && <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>або клікніть для вибору</Typography>}
+        
         {file && (
           <Typography variant="caption" display="block" sx={{ mt: 2, color: 'success.main', fontWeight: 'bold' }}>
-            Розмір: {(file.size / 1024).toFixed(2)} KB
+            Готово до завантаження ({(file.size / 1024).toFixed(1)} KB)
           </Typography>
         )}
       </Paper>
 
       <Button 
-        variant="contained" onClick={handleUpload} disabled={!file || loading}
-        sx={{ mt: 3, width: '100%', maxWidth: 450, py: 1.5, fontWeight: 'bold', textTransform: 'none', borderRadius: 2, boxShadow: 2 }}
+        variant="contained" onClick={handleUpload} 
+        disabled={!file || loading} // Пункт №3: Блокування кнопки
+        sx={{ mt: 3, width: '100%', maxWidth: 450, py: 1.5, fontWeight: 'bold' }}
       >
-        {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити в систему"}
+        {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити дані"}
       </Button>
 
-      {/* --- БЛОК РЕЗУЛЬТАТІВ ІМПОРТУ --- */}
+      {/* Результати імпорту з покращеним UX */}
       {result && (
         <Box sx={{ mt: 5, width: '100%', maxWidth: 600 }}>
           <Divider sx={{ mb: 3 }} />
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Звіт про імпорт:</Typography>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Звіт системи:</Typography>
           
           <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-            <Chip label={`Всього: ${result.total_processed}`} color="primary" variant="outlined" />
-            <Chip label={`Успішно: ${result.success_count}`} color="success" />
-            <Chip label={`Помилок: ${result.error_count}`} color={result.error_count > 0 ? "error" : "default"} />
+            <Chip label={`Всього: ${result.total_processed}`} variant="outlined" />
+            <Chip label={`Оброблено: ${result.success_count}`} color="success" />
+            <Chip label={`Помилки: ${result.error_count}`} color={result.error_count > 0 ? "error" : "default"} />
           </Stack>
 
           {result.errors.length > 0 && (
-            <Alert severity="warning" sx={{ borderRadius: 2 }}>
-              <AlertTitle>Наступні рядки не були завантажені:</AlertTitle>
-              <Box sx={{ maxHeight: 200, overflowY: 'auto', mt: 1 }}>
-                <List dense disablePadding>
+            <Alert severity="error" sx={{ borderRadius: 2 }}>
+              <AlertTitle>Помилки в рядках файлу:</AlertTitle>
+              <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
+                <List dense>
                   {result.errors.map((err, index) => (
-                    <ListItem key={index} sx={{ px: 0, py: 0 }}>
+                    <ListItem key={index} disableGutters>
                       <ListItemText 
-                        primary={`Рядок ${err.row}: ${err.reason}`}
-                        primaryTypographyProps={{ variant: 'body2', color: 'error.main' }}
+                        primary={`Рядок ${err.row}: ${err.reason}`} 
+                        primaryTypographyProps={{ variant: 'caption', fontWeight: 'bold' }}
                       />
                     </ListItem>
                   ))}
