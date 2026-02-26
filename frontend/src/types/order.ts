@@ -35,3 +35,17 @@ export interface ValidationError {
 export interface ApiError {
   detail: string | ValidationError[]; // FastAPI повертає або рядок, або масив деталей
 }
+// src/types/order.ts
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  token: string;       // JWT-токен
+  expires_in?: number; // необов'язково, якщо бекенд віддає час життя токена
+  user?: {
+    id: string;
+    email: string;
+    name?: string;
+  };}
