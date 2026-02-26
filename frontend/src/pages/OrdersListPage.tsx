@@ -1,12 +1,7 @@
 import React from 'react';
-// 1. Імпорти з бібліотек
-import { Container, Typography, Stack, Chip } from '@mui/material';
+import { Container, Stack, Typography, Chip } from '@mui/material'; // Для MUI елементів
 import { useNavigate } from 'react-router-dom';
-
-// 2. Імпорти твоїх кастомних хуків
-import { useOrders } from '../hooks/useOrders';
-
-// 3. Імпорти твоїх НОВИХ компонентів (тепер VS Code їх знайде)
+import { useOrders } from '../hooks/useOrders'; // Твій кастомний хук
 import { LoadingView, ErrorView } from '../components/common/StatusViews';
 import { EmptyOrdersState } from '../components/orders/EmptyOrdersState';
 import { OrdersTable } from '../components/orders/OrdersTable';

@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 // 1. Глобальні стилі (важливо імпортувати ПЕРЕД компонентами)
-import './styles/index.css'; 
+import './index.css'; 
 
 // 2. Головний компонент додатку
 import App from './App'; 
