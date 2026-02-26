@@ -51,11 +51,11 @@ class TaxCalculatorService:
             try:
                 resp = await client.get(url, params=params, headers=headers, timeout=10.0)
                 if resp.status_code != 200:
-                    raise HTTPException(status_code=503, detail="Сервис геокодинга недоступен")
-
+                    raise HTTPException(status_code=503, detail="Сервіс геокодування недоступний")
+                
                 data = resp.json()
                 if "error" in data:
-                     raise HTTPException(status_code=400, detail="Невозможно определить локацию по координатам (возможно, точка в океане)")
+                    raise HTTPException(status_code=400, detail="Неможливо визначити локацію за координатами (можливо, точка в океані)")
 
                 address = data.get("address", {})
                 
@@ -73,7 +73,7 @@ class TaxCalculatorService:
                 }
 
             except httpx.RequestError:
-                raise HTTPException(status_code=503, detail="Ошибка сети при обращении к сервису геокодинга")
+                raise HTTPException(status_code=503, detail="Помилка мережі")
 
 
     async def calculate_full_tax_info(self, lat: float, lon: float, subtotal: float) -> dict:
@@ -86,7 +86,7 @@ class TaxCalculatorService:
         if location.get("state") != "New York":
             raise HTTPException(
                 status_code=400, 
-                detail="Доставка возможна только в пределах штата Нью-Йорк"
+                detail="Доставка можлива лише в межах штату Нью-Йорк"
             )
 
         county_name_lower = location["county"].lower()

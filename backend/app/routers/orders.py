@@ -4,9 +4,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import List
 
+from fastapi import HTTPException
 from fastapi import APIRouter, Depends, status, Query, File, UploadFile
 from sqlalchemy.orm import Session
-
+from sqlalchemy import func, cast, Date
 from app.db.database import get_db
 from app.db.models.models import Order
 from app.schemas.order import OrderCreate, OrderResponse
@@ -47,31 +48,45 @@ async def create_order(
     db.refresh(new_order)
     return new_order
 
-# --- 2. СПИСОК ЗАМОВЛЕНЬ ІЗ СОРТУВАННЯМ ---
+# --- 2. СПИСОК ЗАМОВЛЕНЬ ІЗ СОРТУВАННЯМ ТА АГРЕГАЦІЄЮ ---
 @router.get("/")
 def read_orders(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
     sortBy: str = Query("timestamp"),
     sortOrder: str = Query("desc"),
+    search: str = Query(None, description="Пошук за ID"),
+    date: str = Query(None, description="Фільтр за датою YYYY-MM-DD"),
     db: Session = Depends(get_db)
 ):
-    skip = (page - 1) * limit
     query = db.query(Order)
     
-    # Динамічне сортування
+    # 1. Застосовуємо фільтри з фронтенду
+    if search:
+        query = query.filter(Order.id.ilike(f"%{search}%"))
+    if date:
+        query = query.filter(cast(Order.timestamp, Date) == date)
+
+    # 2. Рахуємо статистику по ВСІЙ відфільтрованій базі
+    total_count = query.count()
+    total_tax = query.with_entities(func.sum(Order.tax_amount)).scalar() or 0.0
+    avg_rate = query.with_entities(func.avg(Order.composite_tax_rate)).scalar() or 0.0
+    
+    # 3. Застосовуємо сортування та пагінацію для таблиці
     sort_column = getattr(Order, sortBy, Order.timestamp)
     if sortOrder == "desc":
         query = query.order_by(sort_column.desc())
     else:
         query = query.order_by(sort_column.asc())
 
-    total = query.count()
+    skip = (page - 1) * limit
     orders = query.offset(skip).limit(limit).all()
     
     return {
         "items": orders,
-        "total": total,
+        "total": total_count,
+        "total_tax": float(total_tax),
+        "avg_rate": float(avg_rate),
         "page": page,
         "size": limit
     }
@@ -87,17 +102,22 @@ async def import_orders(
     decoded = content.decode('utf-8')
     reader = csv.DictReader(io.StringIO(decoded))
     
-    count = 0
-    for row in reader:
+    total_processed = 0
+    success_count = 0
+    error_count = 0
+    errors = []
+    
+    # enumerate(..., start=1) помогает нам знать номер строки (с учетом заголовка)
+    for row_number, row in enumerate(reader, start=1):
+        total_processed += 1
         try:
-            # Читаємо дані (код розуміє і 'lat', і 'latitude')
+            # Читаем данные
             lat = float(row.get('latitude') or row.get('lat'))
             lon = float(row.get('longitude') or row.get('lon'))
             subtotal = float(row.get('subtotal'))
 
-            tax_rate = await tax_service.get_tax_rate(lat, lon)
-            tax_amount = round(subtotal * tax_rate, 2)
-            total_amount = round(subtotal + tax_amount, 2)
+            # ВЫЗЫВАЕМ НАШ НОВЫЙ МЕТОД, КОТОРЫЙ УМЕЕТ ПРОВЕРЯТЬ ШТАТ И ДЕЛАТЬ РАЗБИВКУ
+            tax_data = await tax_service.calculate_full_tax_info(lat, lon, subtotal)
 
             new_order = Order(
                 id=str(uuid.uuid4()),
@@ -105,18 +125,49 @@ async def import_orders(
                 latitude=lat,
                 longitude=lon,
                 subtotal=subtotal,
-                composite_tax_rate=tax_rate,
-                tax_amount=tax_amount,
-                total_amount=total_amount,
-                breakdown={"info": "CSV Import"},
-                jurisdictions=[]
+                composite_tax_rate=tax_data["composite_tax_rate"],
+                tax_amount=tax_data["tax_amount"],
+                total_amount=tax_data["total_amount"],
+                breakdown=tax_data["breakdown"],         # Сохраняем правильный JSON
+                jurisdictions=tax_data["jurisdictions"]  # Сохраняем массив зон
             )
             db.add(new_order)
-            count += 1
-        except Exception as e:
-            print(f"Skipping row due to error: {e}")
+            success_count += 1
 
+        except HTTPException as e:
+            # Ловим ошибку гео-валидации ("Доставка можлива лише...")
+            error_count += 1
+            errors.append({"row": row_number, "reason": e.detail})
+            
+        except ValueError:
+            # Ловим ошибку, если в CSV вместо чисел текст (например, lat="текст")
+            error_count += 1
+            errors.append({"row": row_number, "reason": "Невірний формат координат або суми (очікуються числа)"})
+            
+        except Exception as e:
+            # Ловим любые другие непредвиденные ошибки
+            error_count += 1
+            errors.append({"row": row_number, "reason": "Внутрішня помилка обробки"})
+
+    # Сохраняем все успешные заказы разом
     db.commit()
     
-    # ВОТ ЗДЕСЬ ГЛАВНОЕ ИЗМЕНЕНИЕ: возвращаем то, что ждет фронт
-    return {"success_count": count}
+    # Возвращаем идеальную структуру, которую ждет ImportCSVResponse на фронте
+    return {
+        "total_processed": total_processed,
+        "success_count": success_count,
+        "error_count": error_count,
+        "errors": errors
+    }
+
+# --- 4. ОЧИЩЕННЯ БАЗИ ДАНИХ ---
+@router.delete("/clear", status_code=status.HTTP_200_OK)
+def clear_all_orders(db: Session = Depends(get_db)):
+    try:
+        # Видаляємо всі записи з таблиці Order
+        db.query(Order).delete()
+        db.commit()
+        return {"detail": "Всі дані успішно видалено"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Помилка при видаленні даних з БД")

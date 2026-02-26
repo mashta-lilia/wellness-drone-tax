@@ -1,14 +1,10 @@
 import React from 'react';
-import { Typography, Box } from '@mui/material';
-// Підключаємо твій компонент (перевір шлях, якщо папка src/components)
+import { Box } from '@mui/material';
 import { FileUploader } from '../components/forms/FileUploader';
 
 const ImportPage = () => {
   return (
     <Box sx={{ p: 3 }}>
-      
-      
-      {/* Твоє Issue 5 */}
       <FileUploader />
     </Box>
   );

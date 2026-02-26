@@ -1,14 +1,10 @@
 import React from 'react';
-import { Typography, Box } from '@mui/material';
-// Підключаємо твою форму
+import { Box } from '@mui/material';
 import { ManualOrderForm } from '../components/forms/ManualOrderForm';
 
 const CreateOrderPage = () => {
   return (
     <Box sx={{ p: 3 }}>
-      
-      
-      {/* Твоє Issue 6 */}
       <ManualOrderForm />
     </Box>
   );

@@ -15,11 +15,24 @@ class OrderBase(BaseModel):
     subtotal: float
 
 
+from pydantic import BaseModel, Field
+
 class OrderCreate(BaseModel):
-    latitude: float = Field(..., description="Широта обов'язкова")
-    longitude: float = Field(..., description="Довгота обов'язкова")
-    subtotal: float = Field(..., ge=0, description="Сума замовлення не може бути від'ємною")
-    
+    latitude: float = Field(
+        ..., 
+        ge=-90, le=90, 
+        description="Широта має бути від -90 до 90"
+    )
+    longitude: float = Field(
+        ..., 
+        ge=-180, le=180, 
+        description="Довгота має бути від -180 до 180"
+    )
+    subtotal: float = Field(
+        ..., 
+        gt=0, 
+        description="Сума замовлення має бути більшою за нуль"
+    )
 class OrderResponse(OrderBase):
     id: uuid.UUID  
     timestamp: datetime
