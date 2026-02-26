@@ -169,8 +169,9 @@ export const OrdersListPage = () => {
       setSearchId('');
       setFilterDate(null);
       fetchOrders(); 
-    } catch (error: any) {
-      toast.error(error.message || "Помилка при очищенні бази");
+    } catch (error: unknown) {
+      const err = error as Error;
+      toast.error(err.message || "Помилка при очищенні бази");
     } finally {
       setLoading(false);
     }
@@ -237,6 +238,7 @@ export const OrdersListPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
 
 const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
