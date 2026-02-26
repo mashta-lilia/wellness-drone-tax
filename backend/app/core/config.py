@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    # УБЕРИТЕ отсюда app_name и debug полностью!
+
     # Налаштування бази даних
     DATABASE_URL: str = "sqlite:///./wellness_delivery.db"
     
@@ -15,7 +17,7 @@ class Settings(BaseSettings):
     NY_LON_MIN: float = -79.762590
     NY_LON_MAX: float = -71.777491
 
-    # Дозволяємо читання з .env файлу
-    model_config = SettingsConfigDict(env_file=".env")
+    # ВАЖНО: добавляем extra="ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

@@ -1,14 +1,10 @@
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 const instance = axios.create({
-  // Якщо в FastAPI немає глобального префікса /api, то пиши просто API_URL
-  baseURL: API_URL, 
+  baseURL: '/api', 
   headers: { 'Content-Type': 'application/json' },
 });
-
 // додаємо JWT до кожного запиту
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem('jwt_token');
