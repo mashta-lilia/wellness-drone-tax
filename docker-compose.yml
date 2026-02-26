@@ -7,7 +7,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:////app/wellness_delivery.db
+      - DATABASE_URL=${DATABASE_URL}
       - PYTHONUNBUFFERED=1
     volumes:
       - ./backend/wellness_delivery.db:/app/wellness_delivery.db
@@ -17,7 +17,7 @@ services:
     build: ./frontend
     container_name: drone-tax-frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       - api
     restart: always
