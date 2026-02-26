@@ -1,17 +1,17 @@
-from fastapi import APIRouter, Depends, Query, status, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, status, Query, File, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date
 from typing import Optional
 
 from app.db.database import get_db
 from app.db.models.models import Order
-from app.schemas.order import OrderCreate, OrderResponse, PaginatedOrdersResponse
+from app.schemas.order import OrderCreate, OrderResponse
 from app.services.tax_service import get_tax_service, TaxCalculatorService
 from app.services.order_service import OrderService
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
-# Dependency Injection для сервісу (Пункт 1)
+# Функція для ініціалізації сервісу (Dependency Injection)
 def get_order_service(
     db: Session = Depends(get_db), 
     tax_svc: TaxCalculatorService = Depends(get_tax_service)
@@ -21,23 +21,21 @@ def get_order_service(
 # --- 1. РУЧНЕ СТВОРЕННЯ ЗАМОВЛЕННЯ ---
 @router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_order(
-    order_in: OrderCreate, 
-    svc: OrderService = Depends(get_order_service)
+    order_data: OrderCreate, 
+    service: OrderService = Depends(get_order_service)
 ):
-    """Створює замовлення вручну, використовуючи бізнес-логіку сервісу."""
-    return await svc.create_manual_order(order_in)
+    return await service.create_manual_order(order_data)
 
-# --- 2. ІМПОРТ ЗАМОВЛЕНЬ З CSV ---
+# --- 2. ІМПОРТ ЗАМОВЛЕНЬ З CSV (Pandas Level 2) ---
 @router.post("/import")
 async def import_csv_orders(
     file: UploadFile = File(...), 
-    svc: OrderService = Depends(get_order_service)
+    service: OrderService = Depends(get_order_service)
 ):
-    """Масовий імпорт із CSV файлу з обробкою помилок та транзакційністю (Пункт 6)."""
-    return await svc.process_csv_import(file)
+    return await service.process_csv_import(file)
 
-# --- 3. СПИСОК ЗАМОВЛЕНЬ ІЗ СТАТИСТИКОЮ (Пункт 5) ---
-@router.get("/", response_model=PaginatedOrdersResponse)
+# --- 3. СПИСОК ЗАМОВЛЕНЬ ІЗ СТАТИСТИКОЮ ---
+@router.get("/")
 def get_orders_list(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
@@ -47,11 +45,6 @@ def get_orders_list(
     date: Optional[str] = Query(None, description="Фільтр за датою YYYY-MM-DD"),
     db: Session = Depends(get_db)
 ):
-    """
-    Отримує список замовлень. 
-    Використовує 'def', бо робота з БД синхронна. 
-    Рахує статистику по всій відфільтрованій базі для дашборду.
-    """
     query = db.query(Order)
     
     # Фільтрація
@@ -60,19 +53,18 @@ def get_orders_list(
     if date:
         query = query.filter(cast(Order.timestamp, Date) == date)
 
-    # Агрегація статистики по всій базі перед пагінацією
+    # Статистика по ВСІЙ відфільтрованій базі
     total_count = query.count()
     total_tax = query.with_entities(func.sum(Order.tax_amount)).scalar() or 0.0
     avg_rate = query.with_entities(func.avg(Order.composite_tax_rate)).scalar() or 0.0
-
-    # Сортування
+    
+    # Сортування та пагінація
     sort_column = getattr(Order, sortBy, Order.timestamp)
     if sortOrder == "desc":
         query = query.order_by(sort_column.desc())
     else:
         query = query.order_by(sort_column.asc())
 
-    # Пагінація
     skip = (page - 1) * limit
     orders = query.offset(skip).limit(limit).all()
     
@@ -82,18 +74,16 @@ def get_orders_list(
         "total_tax": float(total_tax),
         "avg_rate": float(avg_rate),
         "page": page,
-        "limit": limit
+        "size": limit
     }
 
-
+# --- 4. ОЧИЩЕННЯ БАЗИ ДАНИХ ---
 @router.delete("/clear", status_code=status.HTTP_200_OK)
 def clear_all_orders(db: Session = Depends(get_db)):
-    """Повністю видаляє всі записи з бази даних."""
     try:
         db.query(Order).delete()
         db.commit()
         return {"detail": "Всі дані успішно видалено"}
     except Exception as e:
         db.rollback()
-        # Тут можна додати logging.error(f"Error: {e}")
         raise HTTPException(status_code=500, detail="Помилка при видаленні даних з БД")
