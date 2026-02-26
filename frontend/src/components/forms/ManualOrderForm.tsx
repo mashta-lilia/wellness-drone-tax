@@ -1,19 +1,27 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Box, Button, TextField, Typography, Paper, Stack, Divider } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, Stack, Divider, CircularProgress } from '@mui/material';
 import { createManualOrder } from '../../api/orders';
-import type { Order } from '../../types/order';
+import type { Order, ApiError } from '../../types/order'; // Пункт №2: Імпорт типів
+import { formatCurrency, formatPercent } from '../../utils/formatters'; // Пункт №1: Форматтери
 import { toast } from 'react-toastify';
+
+// Типізація полів форми
+interface OrderFormData {
+  latitude: string;
+  longitude: string;
+  subtotal: string;
+}
 
 export const ManualOrderForm = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Order | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<OrderFormData>({
     defaultValues: { latitude: '', longitude: '', subtotal: '' }
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: OrderFormData) => {
     setLoading(true);
     setResult(null); 
     
@@ -25,10 +33,10 @@ export const ManualOrderForm = () => {
       });
       setResult(order);
       toast.success("Податок успішно розраховано!");
-    } catch (err: any) {
-      // ТУТ ВАЖЛИВО: беремо повідомлення з нашого api (яке вже українською),
-      // або виводимо дефолтне українське повідомлення
-      toast.error(err.message || "Сталася помилка при створенні замовлення");
+    } catch (err: unknown) {
+      // Пункт №2: Сувора обробка помилок без any
+      const error = err as Error;
+      toast.error(error.message || "Сталася помилка при створенні замовлення");
     } finally {
       setLoading(false);
     }
@@ -42,12 +50,12 @@ export const ManualOrderForm = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', pb: 5 }}>
       <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
-        Ручне створення замовлення
+        Розрахунок податку (Manual)
       </Typography>
 
       {!result ? (
-        <Paper sx={{ p: 4, bgcolor: '#fff', borderRadius: 3, boxShadow: 2, width: '100%', maxWidth: 450 }}>
-          <Typography variant="h6" sx={{ mb: 3, fontWeight: 'medium', textAlign: 'center', color: 'text.secondary' }}>Нове замовлення</Typography>
+        <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 2, width: '100%', maxWidth: 450 }}>
+          <Typography variant="h6" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>Введіть дані замовлення</Typography>
           <form onSubmit={handleSubmit(onSubmit)}>
             <Stack spacing={3}>
               <TextField 
@@ -55,11 +63,11 @@ export const ManualOrderForm = () => {
                 {...register("latitude", { 
                   required: "Обов'язкове поле",
                   pattern: {
-                    value: /^-?\d+(\.\d+)?$/,
-                    message: "Введіть коректні координати (наприклад: 40.7128)"
+                    value: /^-?\d+(\.\d+)?$/, // Пункт №3: Валідація Regex
+                    message: "Введіть число (наприклад: 40.7128)"
                   }
                 })}
-                error={!!errors.latitude} helperText={errors.latitude?.message?.toString()}
+                error={!!errors.latitude} helperText={errors.latitude?.message}
               />
               <TextField 
                 label="Довгота (Longitude)" size="small" fullWidth
@@ -67,10 +75,10 @@ export const ManualOrderForm = () => {
                   required: "Обов'язкове поле",
                   pattern: {
                     value: /^-?\d+(\.\d+)?$/,
-                    message: "Введіть коректні координати (наприклад: -74.0060)"
+                    message: "Введіть число (наприклад: -74.0060)"
                   }
                 })}
-                error={!!errors.longitude} helperText={errors.longitude?.message?.toString()}
+                error={!!errors.longitude} helperText={errors.longitude?.message}
               />
               <TextField 
                 label="Сума (Subtotal)" size="small" fullWidth
@@ -78,55 +86,50 @@ export const ManualOrderForm = () => {
                   required: "Обов'язкове поле",
                   pattern: {
                     value: /^\d+(\.\d{1,2})?$/,
-                    message: "Введіть суму у форматі числа (наприклад: 150 або 150.50)"
+                    message: "Введіть коректну суму"
                   },
-                  min: { value: 0.01, message: "Сума має бути більшою за нуль" }
+                  min: { value: 0.01, message: "Сума має бути більшою за 0" }
                 })}
-                error={!!errors.subtotal} helperText={errors.subtotal?.message?.toString()}
+                error={!!errors.subtotal} helperText={errors.subtotal?.message}
               />
               <Button 
-                type="submit" variant="contained" disabled={loading}
-                sx={{ py: 1.2, fontWeight: 'bold', textTransform: 'none', bgcolor: '#1976d2' }}
+                type="submit" variant="contained" 
+                disabled={loading} // Пункт №3: Блокування кнопки
+                sx={{ py: 1.2, fontWeight: 'bold' }}
               >
-                {loading ? "Розрахунок..." : "Розрахувати податок"}
+                {loading ? <CircularProgress size={24} color="inherit" /> : "Розрахувати"}
               </Button>
             </Stack>
           </form>
         </Paper>
       ) : (
         <Paper sx={{ p: 4, borderRadius: 3, boxShadow: 3, width: '100%', maxWidth: 450, borderTop: '4px solid #1976d2' }}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Звіт замовлення</Typography>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Результат розрахунку</Typography>
           <Divider sx={{ mb: 2 }} />
           
-          <Stack spacing={1.5} sx={{ textAlign: 'center', mb: 2 }}>
-            <Typography>Загальна ставка: <b>{((result?.composite_tax_rate || 0) * 100).toFixed(3)}%</b></Typography>
+          <Stack spacing={2} sx={{ textAlign: 'center' }}>
+            {/* Пункт №1: Використання форматтерів замість .toFixed() */}
+            <Typography>Загальна ставка: <b>{formatPercent(result.composite_tax_rate || 0)}</b></Typography>
             
-            {/* Деталізація податку */}
             {result.breakdown && (
-              <Box sx={{ bgcolor: '#f5f5f5', p: 1.5, borderRadius: 2, display: 'inline-block', textAlign: 'left', mx: 'auto' }}>
-                <Typography variant="body2" color="text.secondary">Нью-Йорк (Штат): {(result.breakdown.state_rate * 100).toFixed(3)}%</Typography>
-                <Typography variant="body2" color="text.secondary">Округ: {(result.breakdown.county_rate * 100).toFixed(3)}%</Typography>
+              <Box sx={{ bgcolor: '#f9f9f9', p: 2, borderRadius: 2, textAlign: 'left' }}>
+                <Typography variant="body2">Штат: {formatPercent(result.breakdown.state_rate)}</Typography>
+                <Typography variant="body2">Округ: {formatPercent(result.breakdown.county_rate)}</Typography>
                 {result.breakdown.special_rates > 0 && (
-                  <Typography variant="body2" color="text.secondary">MCTD (Транспорт): {(result.breakdown.special_rates * 100).toFixed(3)}%</Typography>
+                  <Typography variant="body2">MCTD: {formatPercent(result.breakdown.special_rates)}</Typography>
                 )}
               </Box>
             )}
 
-            <Typography sx={{ mt: 1 }}>Сума податку: <b>${(result?.tax_amount || 0).toFixed(2)}</b></Typography>
+            <Typography>Сума податку: <b>{formatCurrency(result.tax_amount || 0)}</b></Typography>
             
-            {result.jurisdictions && result.jurisdictions.length > 0 && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                Застосовані юрисдикції: {result.jurisdictions.join(', ')}
-              </Typography>
-            )}
-            
-            <Typography variant="h4" sx={{ mt: 2, color: '#1976d2', fontWeight: 'bold' }}>
-              ${(result?.total_amount || 0).toFixed(2)}
+            <Typography variant="h4" sx={{ color: '#1976d2', fontWeight: 'bold', mt: 1 }}>
+              {formatCurrency(result.total_amount || 0)}
             </Typography>
           </Stack>
           
-          <Button fullWidth variant="outlined" onClick={handleReset} sx={{ mt: 2, textTransform: 'none' }}>
-            Створити нове замовлення
+          <Button fullWidth variant="outlined" onClick={handleReset} sx={{ mt: 3 }}>
+            Новий розрахунок
           </Button>
         </Paper>
       )}

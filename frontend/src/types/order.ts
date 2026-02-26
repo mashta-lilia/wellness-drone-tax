@@ -26,3 +26,12 @@ export interface ImportCSVResponse {
     reason: string;
   }[];
 }
+export interface ValidationError {
+  loc: (string | number)[];
+  msg: string;
+  type: string;
+}
+
+export interface ApiError {
+  detail: string | ValidationError[]; // FastAPI повертає або рядок, або масив деталей
+}
