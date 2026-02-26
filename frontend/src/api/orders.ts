@@ -1,4 +1,5 @@
 import api from './axios'; 
+import axios from 'axios'; // Додали імпорт axios для безпечної перевірки помилок
 import type { Order, ImportCSVResponse } from '../types/order';
 
 // 1. Ручне створення замовлення
@@ -6,13 +7,13 @@ export const createManualOrder = async (data: { latitude: number; longitude: num
   try {
     const response = await api.post<Order>('/api/orders/', data);
     return response.data;
-  } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.detail) {
+  } catch (error: unknown) { // Замінили any на unknown
+    if (axios.isAxiosError(error) && error.response?.data?.detail) {
       const detail = error.response.data.detail;
       if (Array.isArray(detail)) {
         throw new Error('Перевірте правильність введених даних. Координати та сума мають бути числами.');
       }
-      throw new Error(detail);
+      throw new Error(String(detail));
     }
     throw new Error('Помилка з\'єднання з сервером. Перевірте підключення.');
   }
@@ -28,9 +29,9 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
-  } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.detail) {
-      throw new Error(error.response.data.detail);
+  } catch (error: unknown) { // Замінили any на unknown
+    if (axios.isAxiosError(error) && error.response?.data?.detail) {
+      throw new Error(String(error.response.data.detail));
     }
     throw new Error('Помилка завантаження файлу. Перевірте з\'єднання з сервером.');
   }
@@ -40,15 +41,15 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
 export const clearAllOrders = async (): Promise<void> => {
   try {
     await api.delete('/api/orders/clear');
-  } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.detail) {
-      throw new Error(error.response.data.detail);
+  } catch (error: unknown) { // Замінили any на unknown
+    if (axios.isAxiosError(error) && error.response?.data?.detail) {
+      throw new Error(String(error.response.data.detail));
     }
     throw new Error('Помилка з\'єднання з сервером під час очищення бази.');
   }
 };
-// Додай це в src/api/orders.ts
+
 export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get<Order[]>('/api/orders/');
-  return response.data;
+  const response = await api.get('/api/orders/');
+  return response.data.items;
 };

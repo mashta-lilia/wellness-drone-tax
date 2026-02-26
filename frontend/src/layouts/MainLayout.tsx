@@ -1,8 +1,7 @@
-import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, ListItemText, 
-  Typography, AppBar, Toolbar, Avatar, Stack 
+  Typography, AppBar, Toolbar, Stack 
 } from '@mui/material';
 import ToysIcon from '@mui/icons-material/Toys'; // Схоже на пропелери дрона
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'; // Іконка профілю

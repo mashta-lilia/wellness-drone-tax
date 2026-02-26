@@ -13,8 +13,9 @@ export const useOrders = () => {
     try {
       const data = await getOrders();
       setOrders(data);
-    } catch (err: any) {
-      setError(err.message || 'Не вдалося завантажити дані');
+    } catch (err: unknown) { // Замінили any на unknown
+      const error = err as Error; // Явно вказуємо тип
+      setError(error.message || 'Не вдалося завантажити дані');
     } finally {
       setLoading(false);
     }
