@@ -64,8 +64,9 @@ export const FileUploader = () => {
       setResult(data);
       setModalOpen(true);
       setFile(null);
-    } catch (error: any) {
-      toast.error(error.message || 'Помилка під час імпорту');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Помилка під час імпорту';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
