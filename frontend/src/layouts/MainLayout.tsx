@@ -1,15 +1,28 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Додали useNavigate
+import React from 'react';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, ListItemText, 
-  Typography, AppBar, Toolbar, Stack 
+  Typography, AppBar, Toolbar, Stack, IconButton, Tooltip 
 } from '@mui/material';
-import ToysIcon from '@mui/icons-material/Toys'; // Схоже на пропелери дрона
-import AccountCircleIcon from '@mui/icons-material/AccountCircle'; // Іконка профілю
+import ToysIcon from '@mui/icons-material/Toys';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import LogoutIcon from '@mui/icons-material/Logout'; // Іконка виходу
 
 const drawerWidth = 240;
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // 1. Отримуємо ім'я користувача з пам'яті браузера
+  const userName = localStorage.getItem('user_name') || 'Admin User';
+
+  // 2. Функція для виходу з системи
+  const handleLogout = () => {
+    localStorage.removeItem('jwt_token'); // Видаляємо токен
+    localStorage.removeItem('user_name'); // Видаляємо ім'я
+    navigate('/login'); // Повертаємося на сторінку входу
+  };
 
   const menuItems = [
     { text: 'Головний список', path: '/' },
@@ -19,45 +32,36 @@ const MainLayout = () => {
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* 1. ВЕРХНЯ ПАНЕЛЬ (HEADER) */}
       <AppBar 
         position="fixed" 
         sx={{ zIndex: (theme) => theme.zIndex.drawer + 1, backgroundColor: '#fff', color: '#000' }}
       >
-       <Toolbar sx={{ justifyContent: 'space-between' }}>
-  {/* Ліва частина: Логотип та Назва */}
-  <Stack direction="row" spacing={1.5} alignItems="center">
-    <ToysIcon 
-      sx={{ 
-        color: '#1a237e', // Темно-синій, як на скріншоті
-        fontSize: 32,
-        transform: 'rotate(45deg)' // Повертаємо, щоб було схоже на X-дрон
-      }} 
-    />
-    <Typography 
-      variant="h6" 
-      noWrap 
-      component="div" 
-      sx={{ fontWeight: 'bold', color: '#333', letterSpacing: '0.5px' }}
-    >
-      Wellness Drone Tax
-    </Typography>
-  </Stack>
-  
-  {/* Права частина: Профіль користувача */}
-  <Stack direction="row" spacing={1.5} alignItems="center">
-    <Typography 
-      variant="body1" 
-      sx={{ color: '#555', fontWeight: 500 }}
-    >
-      Admin User
-    </Typography>
-    <AccountCircleIcon sx={{ color: '#1976d2', fontSize: 35 }} />
-  </Stack>
-</Toolbar>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <ToysIcon sx={{ color: '#1a237e', fontSize: 32, transform: 'rotate(45deg)' }} />
+            <Typography variant="h6" noWrap sx={{ fontWeight: 'bold', color: '#333', letterSpacing: '0.5px' }}>
+              Wellness Drone Tax
+            </Typography>
+          </Stack>
+          
+          <Stack direction="row" spacing={2} alignItems="center">
+            {/* ТУТ ТЕПЕР ЖИВЕ ТВОЄ ІМ'Я */}
+            <Typography variant="body1" sx={{ color: '#555', fontWeight: 500 }}>
+              {userName}
+            </Typography>
+            
+            <AccountCircleIcon sx={{ color: '#1976d2', fontSize: 35 }} />
+
+            {/* Додамо кнопку виходу для повноцінного UX */}
+            <Tooltip title="Вийти">
+              <IconButton onClick={handleLogout} size="small" sx={{ color: '#d32f2f' }}>
+                <LogoutIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Toolbar>
       </AppBar>
 
-      {/* 2. БОКОВА ПАНЕЛЬ (SIDEBAR) */}
       <Drawer
         variant="permanent"
         sx={{
@@ -66,7 +70,7 @@ const MainLayout = () => {
           [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: 'border-box' },
         }}
       >
-        <Toolbar /> {/* Відступ, щоб меню не перекривалося хедером */}
+        <Toolbar />
         <Box sx={{ overflow: 'auto', mt: 1 }}>
           <List>
             {menuItems.map((item) => (
@@ -84,9 +88,8 @@ const MainLayout = () => {
         </Box>
       </Drawer>
 
-      {/* 3. ОСНОВНИЙ КОНТЕНТ */}
       <Box component="main" sx={{ flexGrow: 1, p: 3, backgroundColor: '#f9f9f9', minHeight: '100vh' }}>
-        <Toolbar /> {/* Відступ для основного контенту */}
+        <Toolbar />
         <Outlet />
       </Box>
     </Box>
