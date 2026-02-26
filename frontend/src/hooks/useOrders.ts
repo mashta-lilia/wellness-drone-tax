@@ -13,25 +13,10 @@ export const useOrders = () => {
 
     try {
       const data = await getOrders();
-
-      if (Array.isArray(data)) {
-        setOrders(data);
-      } else {
-        console.error('API повернуло не масив:', data);
-        setOrders([]);
-      }
-
-    } catch (err: unknown) {
-
-      // 🔐 Безпечне звуження типу
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Не вдалося завантажити дані');
-      }
-
-      setOrders([]);
-
+      setOrders(data);
+    } catch (err: unknown) { // Замінили any на unknown
+      const error = err as Error; // Явно вказуємо тип
+      setError(error.message || 'Не вдалося завантажити дані');
     } finally {
       setLoading(false);
     }

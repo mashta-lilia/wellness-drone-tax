@@ -1,0 +1,21 @@
+services:
+  api:
+    build: ./backend
+    container_name: drone-tax-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: drone-tax-frontend
+    ports:
+      - "${FRONTEND_PORT}:80"
+    depends_on:
+      - api
+    restart: always
