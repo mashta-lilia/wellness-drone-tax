@@ -4,7 +4,7 @@ import type { Order, ImportCSVResponse } from '../types/order';
 // 1. Ручне створення замовлення
 export const createManualOrder = async (data: { latitude: number; longitude: number; subtotal: number }): Promise<Order> => {
   try {
-    const response = await api.post<Order>('/api/orders/', data);
+    const response = await api.post<Order>('/orders/', data);
     return response.data;
   } catch (error: any) {
     if (error.response && error.response.data && error.response.data.detail) {
@@ -24,7 +24,7 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
   formData.append('file', file);
 
   try {
-    const response = await api.post<ImportCSVResponse>('/api/orders/import', formData, {
+    const response = await api.post<ImportCSVResponse>('/orders/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -39,7 +39,7 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
 // 3. Очищення бази даних
 export const clearAllOrders = async (): Promise<void> => {
   try {
-    await api.delete('/api/orders/clear');
+    await api.delete('/orders/clear');
   } catch (error: any) {
     if (error.response && error.response.data && error.response.data.detail) {
       throw new Error(error.response.data.detail);
@@ -49,6 +49,6 @@ export const clearAllOrders = async (): Promise<void> => {
 };
 // Додай це в src/api/orders.ts
 export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get<Order[]>('/api/orders/');
+  const response = await api.get<Order[]>('/orders/');
   return response.data;
 };
