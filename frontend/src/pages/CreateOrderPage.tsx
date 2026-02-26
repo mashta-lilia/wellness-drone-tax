@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box } from '@mui/material';
 import { ManualOrderForm } from '../components/forms/ManualOrderForm';
 

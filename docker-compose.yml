@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  api:
+    build: ./backend
+    container_name: drone-tax-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/wellness_delivery.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend/wellness_delivery.db:/app/wellness_delivery.db
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: drone-tax-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: always

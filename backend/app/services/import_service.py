@@ -4,7 +4,6 @@ import asyncio
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from app.services.tax_service import TaxCalculatorService
-# Импортируем модель (проверь, что путь правильный для твоего проекта)
 from app.db.models.models import Order 
 
 class ImportService:

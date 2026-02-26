@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, Button, TextField, Typography, Paper, Stack, Divider, CircularProgress } from '@mui/material';
 import { createManualOrder } from '../../api/orders';
-import type { Order, ApiError } from '../../types/order'; // Пункт №2: Імпорт типів
+import type { Order } from '../../types/order'; // Пункт №2: Імпорт типів
 import { formatCurrency, formatPercent } from '../../utils/formatters'; // Пункт №1: Форматтери
 import { toast } from 'react-toastify';
 

@@ -49,6 +49,6 @@ export const clearAllOrders = async (): Promise<void> => {
 };
 // Додай це в src/api/orders.ts
 export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get<Order[]>('/api/orders/');
-  return response.data;
+  const response = await api.get('/api/orders/'); 
+  return response.data.items; 
 };
