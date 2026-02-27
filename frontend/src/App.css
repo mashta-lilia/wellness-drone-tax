@@ -1,3 +1,6 @@
+/* =========================================
+   Головний контейнер додатку
+   ========================================= */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,15 +8,22 @@
   text-align: center;
 }
 
+/* =========================================
+   Стилі логотипів та анімації
+   ========================================= */
 .logo {
   height: 6em;
   padding: 1.5em;
+  
+  /* Підказує браузеру заздалегідь підготуватися до зміни фільтра для плавнішої анімації */
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -27,12 +37,19 @@
   }
 }
 
+/* Accessibility (Доступність): 
+  Вмикає анімацію ТІЛЬКИ для тих користувачів, які не увімкнули 
+  "Зменшення руху" (Reduced Motion) в налаштуваннях своєї ОС.
+*/
 @media (prefers-reduced-motion: no-preference) {
   a:nth-of-type(2) .logo {
     animation: logo-spin infinite 20s linear;
   }
 }
 
+/* =========================================
+   Допоміжні класи
+   ========================================= */
 .card {
   padding: 2em;
 }

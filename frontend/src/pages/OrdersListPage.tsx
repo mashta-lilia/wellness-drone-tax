@@ -24,7 +24,19 @@ import { clearAllOrders } from '../api/orders';
 
 type OrderDirection = 'asc' | 'desc';
 
-const OrderRow = ({ order }: { order: Order }) => {
+/**
+ * Властивості компонента OrderRow.
+ */
+interface OrderRowProps {
+  order: Order;
+}
+
+/**
+ * Компонент окремого рядка таблиці замовлень.
+ * Підтримує розгортання (Collapse) для відображення деталізації податкових ставок (breakdown).
+ * * @param props - Властивості компонента (містить об'єкт order).
+ */
+const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
   const [open, setOpen] = React.useState(false);
   const breakdown = order.breakdown || { state_rate: 0, county_rate: 0, city_rate: 0, special_rates: 0 };
 
@@ -107,6 +119,11 @@ const OrderRow = ({ order }: { order: Order }) => {
   );
 };
 
+/**
+ * Головна сторінка зі списком замовлень.
+ * Містить таблицю з пагінацією, сортуванням, фільтрацією за ID та датою.
+ * Надає функціонал для експорту даних у CSV та повного очищення бази.
+ */
 export const OrdersListPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -114,7 +131,7 @@ export const OrdersListPage = () => {
   const [avgRateDb, setAvgRateDb] = useState(0);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [openClearDialog, setOpenClearDialog] = useState(false); // Стан для модального вікна
+  const [openClearDialog, setOpenClearDialog] = useState(false);
   
   const [searchId, setSearchId] = useState('');
   const [filterDate, setFilterDate] = useState<Date | null>(null);
@@ -130,6 +147,10 @@ export const OrdersListPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  /**
+   * Обробник зміни напрямку або колонки сортування.
+   * @param property - Назва поля, за яким відбувається сортування.
+   */
   const handleRequestSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -137,6 +158,10 @@ export const OrdersListPage = () => {
     setPage(0);
   };
 
+  /**
+   * Завантажує список замовлень з сервера, враховуючи поточну сторінку,
+   * ліміт, сортування та активні фільтри.
+   */
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -157,7 +182,10 @@ export const OrdersListPage = () => {
     }
   };
 
-  // ФУНКЦІЯ ОЧИЩЕННЯ БД
+  /**
+   * Виконує запит на повне очищення бази даних.
+   * Після успішного видалення скидає всі фільтри та оновлює таблицю.
+   */
   const confirmClearDatabase = async () => {
     setOpenClearDialog(false);
     setLoading(true);
@@ -177,7 +205,10 @@ export const OrdersListPage = () => {
     }
   };
 
-  // ФУНКЦІЯ ЕКСПОРТУ
+  /**
+   * Генерує та завантажує CSV-файл із поточним списком замовлень
+   * (враховуючи застосовані фільтри, але ігноруючи пагінацію).
+   */
   const handleExportCSV = async () => {
     setExporting(true);
     try {
@@ -241,7 +272,8 @@ export const OrdersListPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
 
-const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
+  const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
+  
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -249,7 +281,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
 
   return (
     <Box sx={{ pb: 5 }}>
-      {/* Шапка з кнопками */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333' }}>
           Головний список замовлень
@@ -436,7 +467,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
         />
       </TableContainer>
 
-      {/* --- МОДАЛЬНЕ ВІКНО ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ --- */}
       <Dialog
         open={openClearDialog}
         onClose={() => setOpenClearDialog(false)}
@@ -460,8 +490,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 };
-

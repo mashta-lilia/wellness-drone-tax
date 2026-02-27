@@ -1,17 +1,18 @@
+/**
+ * Головна точка входу (Entry Point) React-додатку.
+ * Відповідає за ініціалізацію глобальних стилів, підключення кореневого компонента App
+ * та його безпечний рендеринг у DOM-дерево браузера.
+ */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-// 1. Глобальні стилі (важливо імпортувати ПЕРЕД компонентами)
 import './index.css'; 
-
-// 2. Головний компонент додатку
 import App from './App'; 
 
-// 3. Рендеринг у DOM
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  throw new Error('Не вдалося знайти кореневий елемент #root');
+  throw new Error('Не вдалося знайти кореневий елемент #root. Перевірте файл index.html.');
 }
 
 createRoot(rootElement).render(

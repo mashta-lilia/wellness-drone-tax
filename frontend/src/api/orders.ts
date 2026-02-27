@@ -1,13 +1,18 @@
 import api from './axiosInstance'; 
-import axios from 'axios'; // Додали імпорт axios для безпечної перевірки помилок
+import axios from 'axios';
 import type { Order, ImportCSVResponse } from '../types/order';
 
-// 1. Ручне створення замовлення
+/**
+ * Створює нове замовлення вручну.
+ * * @param data - Об'єкт з даними замовлення (широта, довгота та сума).
+ * @returns Створене замовлення з бази даних.
+ * @throws {Error} Якщо передані невалідна інформація або сталася помилка з'єднання.
+ */
 export const createManualOrder = async (data: { latitude: number; longitude: number; subtotal: number }): Promise<Order> => {
   try {
     const response = await api.post<Order>('/orders/', data);
     return response.data;
-  } catch (error: unknown) { // Замінили any на unknown
+  } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response?.data?.detail) {
       const detail = error.response.data.detail;
       if (Array.isArray(detail)) {
@@ -19,7 +24,12 @@ export const createManualOrder = async (data: { latitude: number; longitude: num
   }
 };
 
-// 2. Імпорт CSV
+/**
+ * Імпортує масив замовлень на сервер за допомогою CSV файлу.
+ * * @param file - Файл у форматі CSV.
+ * @returns Статистика або результати імпорту замовлень.
+ * @throws {Error} Якщо файл невалідний або сталася помилка завантаження.
+ */
 export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> => {
   const formData = new FormData();
   formData.append('file', file);
@@ -29,7 +39,7 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
-  } catch (error: unknown) { // Замінили any на unknown
+  } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response?.data?.detail) {
       throw new Error(String(error.response.data.detail));
     }
@@ -37,11 +47,14 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
   }
 };
 
-// 3. Очищення бази даних
+/**
+ * Очищає базу даних від усіх поточних замовлень.
+ * * @throws {Error} Якщо сервер повертає помилку під час видалення.
+ */
 export const clearAllOrders = async (): Promise<void> => {
   try {
     await api.delete('/orders/clear');
-  } catch (error: unknown) { // Замінили any на unknown
+  } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response?.data?.detail) {
       throw new Error(String(error.response.data.detail));
     }
@@ -49,7 +62,11 @@ export const clearAllOrders = async (): Promise<void> => {
   }
 };
 
+/**
+ * Отримує список усіх існуючих замовлень.
+ * * @returns Масив об'єктів замовлень.
+ */
 export const getOrders = async (): Promise<Order[]> => {
   const response = await api.get('/orders/');
-  return response.data.items;
+  return response.data.items; 
 };

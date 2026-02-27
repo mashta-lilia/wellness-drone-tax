@@ -4,6 +4,12 @@ import { Box, Paper, Typography, TextField, Button, Stack, CircularProgress } fr
 import { loginUser } from '../api/auth';
 import { toast } from 'react-toastify';
 
+/**
+ * Сторінка авторизації користувача.
+ * Надає форму для введення email та пароля, обробляє запит до API,
+ * зберігає отримані токен та дані користувача у локальне сховище,
+ * а також виконує перенаправлення на головну сторінку у разі успіху.
+ */
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -11,16 +17,24 @@ export const LoginPage: React.FC = () => {
 
   const navigate = useNavigate();
 
+  /**
+   * Обробник відправки форми.
+   * Звертається до API для перевірки облікових даних та оновлює стан сесії.
+   * @param e - Подія відправки форми.
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    try {
-        const response = await loginUser({ email, password });
     
-      localStorage.setItem('jwt_token', response.token); // зберігаємо JWT
+    try {
+      const response = await loginUser({ email, password });
+    
+      localStorage.setItem('jwt_token', response.token);
+      
       const displayName = response.user?.name || response.user?.email || 'Користувач';
-    localStorage.setItem('user_name', displayName);
-      navigate('/'); // редирект на головну після входу
+      localStorage.setItem('user_name', displayName);
+      
+      navigate('/');
       toast.success('Вхід виконано успішно!');
     } catch (err: unknown) {
       const error = err as Error;

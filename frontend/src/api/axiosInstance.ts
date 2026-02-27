@@ -3,13 +3,18 @@ import { toast } from 'react-toastify';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+/**
+ * Базовий екземпляр Axios для запитів до бекенду.
+ */
 const instance = axios.create({
-  // Якщо в FastAPI немає глобального префікса /api, то пиши просто API_URL
   baseURL: API_URL, 
   headers: { 'Content-Type': 'application/json' },
 });
 
-// додаємо JWT до кожного запиту
+/**
+ * Перехоплювач запитів (Request Interceptor).
+ * Автоматично додає JWT токен до заголовків кожного запиту, якщо користувач авторизований.
+ */
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem('jwt_token');
   if (token) {
@@ -18,15 +23,20 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
-// ловимо 401 (токен протух)
+/**
+ * Перехоплювач відповідей (Response Interceptor).
+ * Відслідковує помилки авторизації. Якщо отримуємо 401 (токен недійсний/прострочений),
+ * очищає дані сесії та перенаправляє на сторінку логіну.
+ */
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
       toast.error('Сесія завершилася. Будь ласка, увійдіть знову.');
-      window.location.href = '/login'; // редирект на сторінку логіну
+      window.location.href = '/login'; 
     }
+    
     return Promise.reject(error);
   }
 );

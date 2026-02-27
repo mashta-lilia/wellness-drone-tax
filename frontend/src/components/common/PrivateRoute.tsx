@@ -1,12 +1,22 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
+/**
+ * Властивості для компонента PrivateRoute.
+ */
 interface PrivateRouteProps {
-  children: React.ReactNode; // Це замінить проблемний JSX.Element
+  /** Дочірні елементи, які будуть відрендерені, якщо користувач авторизований. */
+  children: React.ReactNode; 
 }
 
+/**
+ * Компонент-обгортка для захищених маршрутів.
+ * Перевіряє наявність JWT-токену в localStorage. Якщо токен відсутній,
+ * автоматично перенаправляє користувача на сторінку авторизації.
+ * * @param props - Властивості компонента (містить children).
+ * @returns Відрендерені дочірні компоненти або компонент Navigate для редиректу.
+ */
 export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  // Переконайся, що ключ у localStorage такий самий, як при логіні ('jwt_token')
   const token = localStorage.getItem('jwt_token'); 
   
   if (!token) {
@@ -14,4 +24,4 @@ export const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }
   
   return <>{children}</>;
-};  
+};

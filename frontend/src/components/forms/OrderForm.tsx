@@ -2,20 +2,34 @@ import React, { useState } from 'react';
 import { TextField, Button, Stack, Box, Alert } from '@mui/material';
 import { Save } from '@mui/icons-material';
 
+/**
+ * Властивості для компонента OrderForm.
+ */
 interface OrderFormProps {
+  /** Функція, яка викликається після успішної валідації форми. Отримує розпарсені числові дані. */
   onSubmit: (data: { latitude: number; longitude: number; subtotal: number }) => Promise<void>;
+  /** Прапорець, що блокує кнопку та сигналізує про процес відправки даних. */
   loading: boolean;
 }
 
+/**
+ * Компонент базової форми для створення замовлення.
+ * Збирає координати (широту, довготу) та загальну суму, проводить базову 
+ * клієнтську валідацію на перевірку числових значень перед відправкою.
+ * * @param props - Властивості компонента (містить onSubmit та loading).
+ */
 export const OrderForm: React.FC<OrderFormProps> = ({ onSubmit, loading }) => {
   const [formData, setFormData] = useState({ latitude: '', longitude: '', subtotal: '' });
   const [error, setError] = useState<string | null>(null);
 
+  /**
+   * Обробник події відправки форми.
+   * Конвертує текстові значення у числа та перевіряє їх на валідність (NaN).
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Валідація: перетворюємо рядки в числа
     const lat = parseFloat(formData.latitude);
     const lng = parseFloat(formData.longitude);
     const amount = parseFloat(formData.subtotal);

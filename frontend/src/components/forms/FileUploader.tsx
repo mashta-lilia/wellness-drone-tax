@@ -1,26 +1,33 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Box, Button, Typography, Paper, CircularProgress, Stack, Chip, Divider, Alert, AlertTitle, List, ListItem, ListItemText } from '@mui/material';
-import { importOrdersCSV } from '../../api/orders'; // Використовуємо наш сервіс
+import { importOrdersCSV } from '../../api/orders';
 import { toast } from 'react-toastify';
 import type { ImportCSVResponse } from '../../types/order';
 
+/**
+ * Компонент для завантаження CSV-файлів із замовленнями.
+ * Підтримує drag-and-drop, клієнтську валідацію формату та розміру файлу,
+ * а також відображає детальну статистику та список помилок після імпорту.
+ */
 export const FileUploader = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportCSVResponse | null>(null);
 
+  /**
+   * Обробник події додавання файлу в dropzone.
+   * Виконує первинну перевірку розширення та розміру файлу (до 5 МБ).
+   */
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
     if (!selectedFile) return;
 
-    // 1. Перевірка формату
     if (!selectedFile.name.endsWith('.csv')) {
       toast.error("Помилка: можна завантажувати лише .csv файли");
       return;
     }
 
-    // 2. Перевірка розміру файлу (максимум 5 МБ)
     const MAX_SIZE_MB = 5;
     if (selectedFile.size > MAX_SIZE_MB * 1024 * 1024) {
       toast.error(`Помилка: файл занадто великий (максимум ${MAX_SIZE_MB} МБ)`);
@@ -35,16 +42,19 @@ export const FileUploader = () => {
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     multiple: false,
-    disabled: loading // Блокуємо дропзону під час завантаження
+    disabled: loading
   });
 
+  /**
+   * Відправляє обраний файл на сервер.
+   * Оновлює стан компонента залежно від успішності операції та кількості помилок у CSV.
+   */
   const handleUpload = async () => {
     if (!file) return;
     setLoading(true);
     setResult(null);
 
     try {
-      // Використовуємо наш централізований сервіс (без хардкоду портів!)
       const data = await importOrdersCSV(file);
       setResult(data);
       
@@ -58,7 +68,6 @@ export const FileUploader = () => {
       
       setFile(null);
     } catch (err: unknown) {
-      // Пункт №2: Сувора типізація помилок без any
       const error = err as Error;
       toast.error(error.message || "Помилка при імпорті файлу");
     } finally {
@@ -98,13 +107,12 @@ export const FileUploader = () => {
 
       <Button 
         variant="contained" onClick={handleUpload} 
-        disabled={!file || loading} // Пункт №3: Блокування кнопки
+        disabled={!file || loading}
         sx={{ mt: 3, width: '100%', maxWidth: 450, py: 1.5, fontWeight: 'bold' }}
       >
         {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити дані"}
       </Button>
 
-      {/* Результати імпорту з покращеним UX */}
       {result && (
         <Box sx={{ mt: 5, width: '100%', maxWidth: 600 }}>
           <Divider sx={{ mb: 3 }} />
