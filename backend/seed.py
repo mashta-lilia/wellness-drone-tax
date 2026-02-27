@@ -1,6 +1,14 @@
 import logging
+import sys
+import os
+from passlib.context import CryptContext
 
-# Налаштування логера для виводу в консоль Docker
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.db.database import Base, engine, SessionLocal
+from app.db.models.models import User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 logger = logging.getLogger(__name__)
 
 def seed_admin():

@@ -1,5 +1,5 @@
 import api from './axiosInstance';
-import axios from 'axios'; // Додали імпорт axios для безпечної перевірки помилок
+import axios from 'axios';
 import type { Order, ImportCSVResponse } from '../types/order';
 
 /**
@@ -10,7 +10,8 @@ import type { Order, ImportCSVResponse } from '../types/order';
  */
 export const createManualOrder = async (data: { latitude: number; longitude: number; subtotal: number }): Promise<Order> => {
   try {
-    const response = await api.post<Order>('/orders/', data);
+    // Виправили: прибрали слеш в кінці, тепер строго '/orders'
+    const response = await api.post<Order>('/orders', data);
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response?.data?.detail) {
@@ -35,6 +36,7 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
   formData.append('file', file);
 
   try {
+    // Тут усе було правильно
     const response = await api.post<ImportCSVResponse>('/orders/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -53,6 +55,7 @@ export const importOrdersCSV = async (file: File): Promise<ImportCSVResponse> =>
  */
 export const clearAllOrders = async (): Promise<void> => {
   try {
+    // Тут теж усе правильно
     await api.delete('/orders/clear');
   } catch (error: unknown) {
     if (axios.isAxiosError(error) && error.response?.data?.detail) {
@@ -67,6 +70,7 @@ export const clearAllOrders = async (): Promise<void> => {
  * * @returns Масив об'єктів замовлень.
  */
 export const getOrders = async (): Promise<Order[]> => {
-  const response = await api.get('/orders/');
+  // Виправили: прибрали слеш в кінці, тепер строго '/orders'
+  const response = await api.get('/orders');
   return response.data.items; 
 };
