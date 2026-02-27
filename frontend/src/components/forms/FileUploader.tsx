@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Box, Button, Typography, Paper, CircularProgress, Stack, Chip, Divider, Alert, AlertTitle, List, ListItem, ListItemText } from '@mui/material';
+import { Box, Button, Typography, Paper, CircularProgress, Stack, Chip, Divider, Alert, AlertTitle, List, ListItem, ListItemText,Dialog, DialogTitle, DialogContent, DialogActions} from '@mui/material';
 import { importOrdersCSV } from '../../api/orders';
 import { toast } from 'react-toastify';
 import type { ImportCSVResponse } from '../../types/order';
+import UploadIcon from '@mui/icons-material/Upload';
 
 /**
  * Компонент для завантаження CSV-файлів із замовленнями.
@@ -14,6 +15,7 @@ export const FileUploader = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportCSVResponse | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   /**
    * Обробник події додавання файлу в dropzone.
@@ -35,14 +37,15 @@ export const FileUploader = () => {
     }
 
     setFile(selectedFile);
-    setResult(null); 
+    setResult(null);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/csv': ['.csv'] },
     multiple: false,
-    disabled: loading
+    disabled: loading,
+    maxFiles: 1
   });
 
   /**
@@ -51,98 +54,168 @@ export const FileUploader = () => {
    */
   const handleUpload = async () => {
     if (!file) return;
-    setLoading(true);
-    setResult(null);
 
+    setLoading(true);
     try {
       const data = await importOrdersCSV(file);
       setResult(data);
-      
-      if (data.error_count === 0) {
-        toast.success(`Успішно! Імпортовано ${data.success_count} замовлень.`);
-      } else if (data.success_count > 0) {
-        toast.warning(`Завантажено частково: ${data.success_count} успішно, ${data.error_count} помилок.`);
-      } else {
-        toast.error("У файлі не знайдено коректних даних.");
-      }
-      
+      setModalOpen(true);
       setFile(null);
-    } catch (err: unknown) {
-      const error = err as Error;
-      toast.error(error.message || "Помилка при імпорті файлу");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Помилка під час імпорту';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', pb: 5 }}>
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
-        Імпорт замовлень
-      </Typography>
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setResult(null);
+  };
 
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 4 }}>
+      
+      {/* КРАСИВА ЗОНА ЗАВАНТАЖЕННЯ */}
       <Paper 
-        {...getRootProps()} 
+        {...getRootProps()}
+        elevation={0} 
         sx={{ 
-          p: 6, textAlign: 'center', cursor: loading ? 'not-allowed' : 'pointer', 
-          border: '2px dashed #1976d2', 
-          bgcolor: isDragActive ? '#f0f7ff' : '#fff', borderRadius: 3, boxShadow: 2, 
-          width: '100%', maxWidth: 450, opacity: loading ? 0.6 : 1,
+          p: 6, 
+          width: '100%', 
+          maxWidth: 600, 
+          textAlign: 'center',
+          cursor: 'pointer',
+          border: '2px dashed',
+          borderColor: isDragActive ? 'primary.main' : 'grey.300',
+          backgroundColor: isDragActive ? 'primary.50' : '#fafafa',
+          borderRadius: 3,
           transition: 'all 0.2s ease-in-out',
-          '&:hover': { borderColor: !loading ? '#115293' : '#1976d2' }
+          '&:hover': {
+            borderColor: 'primary.main',
+            backgroundColor: 'primary.50'
+          }
         }}
       >
         <input {...getInputProps()} />
-        <Typography variant="h6" sx={{ color: file ? '#1976d2' : '#666', fontWeight: 'medium' }}>
-          {file ? file.name : "Перетягніть CSV сюди"}
+        
+        <Box sx={{ mb: 2, transform: isDragActive ? 'scale(1.1)' : 'scale(1)', transition: 'transform 0.2s' }}>
+          <UploadIcon />
+        </Box>
+
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 1 }}>
+          {isDragActive ? "Відпустіть файл тут!" : "Перетягніть CSV файл сюди"}
         </Typography>
-        {!file && <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>або клікніть для вибору</Typography>}
+        
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Або натисніть у цій зоні, щоб обрати файл вручну
+        </Typography>
         
         {file && (
-          <Typography variant="caption" display="block" sx={{ mt: 2, color: 'success.main', fontWeight: 'bold' }}>
-            Готово до завантаження ({(file.size / 1024).toFixed(1)} KB)
-          </Typography>
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'white', borderRadius: 2, border: '1px solid', borderColor: 'grey.200' }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+              📄 {file.name}
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              {(file.size / 1024).toFixed(1)} KB
+            </Typography>
+          </Box>
         )}
       </Paper>
+      
+      
 
-      <Button 
-        variant="contained" onClick={handleUpload} 
+      <Button
+        variant="contained"
+        size="large"
+        onClick={handleUpload}
         disabled={!file || loading}
-        sx={{ mt: 3, width: '100%', maxWidth: 450, py: 1.5, fontWeight: 'bold' }}
+        sx={{ 
+          mt: 4, 
+          width: '100%', 
+          maxWidth: 600, 
+          py: 1.5, 
+          fontWeight: 'bold',
+          borderRadius: 2,
+          textTransform: 'none',
+          fontSize: '1.1rem'
+        }}
       >
-        {loading ? <CircularProgress size={24} color="inherit" /> : "Завантажити дані"}
+        {loading ? <CircularProgress size={26} color="inherit" /> : 'Почати імпорт даних'}
       </Button>
 
-      {result && (
-        <Box sx={{ mt: 5, width: '100%', maxWidth: 600 }}>
-          <Divider sx={{ mb: 3 }} />
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', textAlign: 'center' }}>Звіт системи:</Typography>
-          
-          <Stack direction="row" spacing={2} justifyContent="center" sx={{ mb: 3 }}>
-            <Chip label={`Всього: ${result.total_processed}`} variant="outlined" />
-            <Chip label={`Оброблено: ${result.success_count}`} color="success" />
-            <Chip label={`Помилки: ${result.error_count}`} color={result.error_count > 0 ? "error" : "default"} />
-          </Stack>
+      {/* КРАСИВЕ МОДАЛЬНЕ ВІКНО ЗІ ЗВІТОМ */}
+      <Dialog 
+        open={modalOpen} 
+        onClose={handleCloseModal}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', textAlign: 'center', fontSize: '1.5rem', pt: 3 }}>
+          📊 Результати імпорту
+        </DialogTitle>
+        
+        <DialogContent dividers sx={{ backgroundColor: '#fcfcfc', p: 3 }}>
+          {result && (
+            <Box>
+              {/* Якщо все ідеально (без помилок) */}
+              {result?.error_count === 0 ? (
+                <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
+                  <AlertTitle sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Успішно!</AlertTitle>
+                  Усі <strong>{result?.success_count}</strong> рядків було завантажено та оброблено без жодної помилки.
+                </Alert>
+              ) : (
+                /* Якщо є помилки */
+                <>
+                  <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
+                    <Box sx={{ flex: 1, p: 2, bgcolor: 'success.50', borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'success.200' }}>
+                      <Typography variant="h5" color="success.main" fontWeight="bold">{result?.success_count}</Typography>
+                      <Typography variant="body2" color="success.main">Успішних</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, p: 2, bgcolor: 'error.50', borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'error.200' }}>
+                      <Typography variant="h5" color="error.main" fontWeight="bold">{result?.error_count}</Typography>
+                      <Typography variant="body2" color="error.main">Помилок</Typography>
+                    </Box>
+                  </Stack>
 
-          {result.errors.length > 0 && (
-            <Alert severity="error" sx={{ borderRadius: 2 }}>
-              <AlertTitle>Помилки в рядках файлу:</AlertTitle>
-              <Box sx={{ maxHeight: 150, overflowY: 'auto' }}>
-                <List dense>
-                  {result.errors.map((err, index) => (
-                    <ListItem key={index} disableGutters>
-                      <ListItemText 
-                        primary={`Рядок ${err.row}: ${err.reason}`} 
-                        primaryTypographyProps={{ variant: 'caption', fontWeight: 'bold' }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            </Alert>
+                  <Alert severity="warning" sx={{ borderRadius: 2, mb: 2 }}>
+                    <AlertTitle sx={{ fontWeight: 'bold' }}>Деталі помилок:</AlertTitle>
+                    Ці рядки не потрапили до бази даних (найчастіше через те, що координати знаходяться за межами штату Нью-Йорк).
+                  </Alert>
+
+                  <Paper variant="outlined" sx={{ maxHeight: 250, overflowY: 'auto', borderRadius: 2 }}>
+                    <List dense disablePadding>
+                      {result?.errors?.map((err, index) => (
+                        <ListItem key={index} divider={index < (result?.errors?.length || 0) - 1} sx={{ py: 1.5 }}>
+                          <ListItemText 
+                            primary={`Рядок: ${err.row}`} 
+                            secondary={err.reason}
+                            primaryTypographyProps={{ fontWeight: 'bold', color: 'error.dark', mb: 0.5 }}
+                            secondaryTypographyProps={{ variant: 'body2' }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Paper>
+                </>
+              )}
+            </Box>
           )}
-        </Box>
-      )}
+        </DialogContent>
+        
+        <DialogActions sx={{ justifyContent: 'center', p: 3, backgroundColor: '#fcfcfc' }}>
+          <Button 
+            onClick={handleCloseModal} 
+            variant="contained" 
+            size="large"
+            sx={{ px: 4, borderRadius: 2, textTransform: 'none', fontWeight: 'bold' }}
+          >
+            Зрозуміло, закрити
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

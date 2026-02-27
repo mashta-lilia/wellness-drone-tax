@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
  * Базовий екземпляр Axios для запитів до бекенду.
  */
 const instance = axios.create({
-  baseURL: API_URL, 
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -22,6 +22,7 @@ instance.interceptors.request.use((config) => {
   }
   return config;
 });
+
 
 /**
  * Перехоплювач відповідей (Response Interceptor).
