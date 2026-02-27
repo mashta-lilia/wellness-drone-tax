@@ -50,8 +50,13 @@ MANIFEST
 *.db
 log/
 *.log
-db/
 postgres_data/
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
 
 # --- IDEs and Tools ---
 .idea/
