@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Box, Button, Typography, Paper, CircularProgress, Stack, Chip, Divider, Alert, AlertTitle, List, ListItem, ListItemText,Dialog, DialogTitle, DialogContent, DialogActions} from '@mui/material';
+import { Box, Button, Typography, Paper, CircularProgress, Stack, Alert, AlertTitle, List, ListItem, ListItemText,Dialog, DialogTitle, DialogContent, DialogActions} from '@mui/material';
 import { importOrdersCSV } from '../../api/orders';
 import { toast } from 'react-toastify';
 import type { ImportCSVResponse } from '../../types/order';
