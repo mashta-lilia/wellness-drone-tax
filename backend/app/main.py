@@ -9,7 +9,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Налаштування CORS для взаємодії з React-фронтендом
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
@@ -24,8 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Підключення основного маршрутизатора замовлень
-app.include_router(orders.router)
+app.include_router(orders.router, prefix="/orders")
 
 @app.get("/")
 def read_root():

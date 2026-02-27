@@ -9,24 +9,20 @@ from app.schemas.order import OrderCreate, OrderResponse
 from app.services.tax_service import get_tax_service, TaxCalculatorService
 from app.services.order_service import OrderService
 
-router = APIRouter(prefix="/orders", tags=["Orders"])
+router = APIRouter(tags=["Orders"])
 
 def get_order_service(
     db: Session = Depends(get_db), 
     tax_svc: TaxCalculatorService = Depends(get_tax_service)
 ) -> OrderService:
-    """Dependency Injection для OrderService."""
     return OrderService(db, tax_svc)
 
-@router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_manual_order(
     order_data: OrderCreate, 
     service: OrderService = Depends(get_order_service)
 ):
-    """
-    Створення одиничного замовлення вручну.
-    Приймає lat, lon, subtotal. Миттєво розраховує податки і зберігає в БД.
-    """
+    """Створення нового замовлення вручну."""
     return await service.create_manual_order(order_data)
 
 @router.post("/import")
@@ -34,16 +30,13 @@ async def import_csv_orders(
     file: UploadFile = File(...), 
     service: OrderService = Depends(get_order_service)
 ):
-    """
-    Масовий імпорт замовлень з CSV.
-    Використовує векторизацію Pandas та R-Tree для обробки тисяч рядків.
-    """
+    """Імпорт списку замовлень через CSV-файл."""
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Файл має бути формату CSV")
     
     return await service.process_csv_import(file)
 
-@router.get("/")
+@router.get("")
 def get_orders_list(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1),
@@ -53,9 +46,7 @@ def get_orders_list(
     date: Optional[str] = Query(None, description="Фільтр за датою YYYY-MM-DD"),
     db: Session = Depends(get_db)
 ):
-    """
-    Отримання списку замовлень з пагінацією, фільтрацією та агрегованою статистикою.
-    """
+    """Отримання списку замовлень з пагінацією, фільтрацією та сортуванням."""
     query = db.query(Order)
     
     if search:
@@ -87,9 +78,7 @@ def get_orders_list(
 
 @router.delete("/clear", status_code=status.HTTP_200_OK)
 def clear_all_orders(db: Session = Depends(get_db)):
-    """
-    Очищення всієї таблиці замовлень (допоміжний ендпоінт для тестування).
-    """
+    """Повне очищення бази даних замовлень."""
     try:
         db.query(Order).delete()
         db.commit()

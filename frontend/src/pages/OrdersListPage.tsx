@@ -71,7 +71,7 @@ export const OrdersListPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      let url = `http://localhost:8000/api/orders/?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
+      let url = `http://localhost:8000/orders?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
       if (searchId) url += `&search=${searchId}`;
       if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
 
@@ -118,7 +118,7 @@ export const OrdersListPage = () => {
   const handleExportCSV = async () => {
     setExporting(true);
     try {
-      let url = `http://localhost:8000/api/orders/?page=1&limit=10000&sortBy=${orderBy}&sortOrder=${order}`;
+      let url = `http://localhost:8000/orders?page=1&limit=10000&sortBy=${orderBy}&sortOrder=${order}`;
       if (searchId) url += `&search=${searchId}`;
       if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
 

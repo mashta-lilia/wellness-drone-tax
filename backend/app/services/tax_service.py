@@ -37,7 +37,7 @@ class TaxCalculatorService:
         }
 
     def _load_geodata(self):
-        """Завантажує GeoJSON та будує просторове R-дерево з буфером 100м."""
+        """Завантажує GeoJSON та будує просторове R-дерево."""
         filepath = os.path.join(os.path.dirname(__file__), "..", "data", "ny_counties.geojson")
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -45,7 +45,7 @@ class TaxCalculatorService:
                 for feature in data.get('features', []):
                     name = feature['properties'].get('name', '').replace(' County', '').strip()
                     
-                    # Застосування буфера 100м для охоплення мостів та узбережжя
+                    # Буфер для охоплення мостів та прибережної зони
                     polygon = shape(feature['geometry']).buffer(0.001).simplify(0.002)
                     
                     self.polygons.append(polygon)
@@ -109,8 +109,6 @@ class TaxCalculatorService:
             return valid_df, invalid_df
 
         valid_df['state_tax_rate'] = self.state_tax_rate
-        
-        # Накладання словника ставок на визначені округи
         valid_df['county_tax_rate'] = valid_df['county'].map(self.county_tax_rates).fillna(0.04)
         
         valid_df['mctd_rate'] = 0.0
@@ -132,8 +130,9 @@ class TaxCalculatorService:
         
         return valid_df, invalid_df
 
-# Singleton патерн
+
 _instance = None
+
 def get_tax_service():
     global _instance
     if _instance is None:
