@@ -1,11 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import orders, taxes  
-from app.core.config import settings # Використовуємо наш конфіг
+from app.routers import orders
+from app.core.config import settings
 
-app = FastAPI(title="Wellness Drone Tax")
+app = FastAPI(
+    title="Instant Wellness Kits Tax API",
+    description="API для розрахунку податків на доставку дронами у штаті Нью-Йорк",
+    version="1.0.0"
+)
 
-# Налаштування CORS: обмежуємо доступ тільки твоїм фронтендом
+# Налаштування CORS для взаємодії з React-фронтендом
 origins = [
     "http://localhost:3000",
     "http://localhost:5173",
@@ -20,10 +24,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Підключаємо роутери
+# Підключення основного маршрутизатора замовлень
 app.include_router(orders.router)
-app.include_router(taxes.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Wellness Drone Tax API is running!"}
+    """Health check ендпоінт для перевірки статусу сервера."""
+    return {"status": "success", "message": "Wellness Drone Tax API is running!"}
