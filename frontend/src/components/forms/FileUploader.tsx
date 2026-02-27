@@ -1,47 +1,38 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { 
-  Box, 
-  Button, 
-  Typography, 
-  Paper, 
-  CircularProgress, 
-  Stack, 
-  Alert, 
-  AlertTitle, 
-  List, 
-  ListItem, 
-  ListItemText,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions
-} from '@mui/material';
-import { importOrdersCSV } from '../../api/orders'; 
+import { Box, Button, Typography, Paper, CircularProgress, Stack, Alert, AlertTitle, List, ListItem, ListItemText,Dialog, DialogTitle, DialogContent, DialogActions} from '@mui/material';
+import { importOrdersCSV } from '../../api/orders';
 import { toast } from 'react-toastify';
 import type { ImportCSVResponse } from '../../types/order';
+import UploadIcon from '@mui/icons-material/Upload';
 
-// Гарна SVG-іконка завантаження, щоб не тягнути зайві бібліотеки
-const UploadIcon = () => (
-  <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#1976d2" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-    <polyline points="17 8 12 3 7 8"></polyline>
-    <line x1="12" y1="3" x2="12" y2="15"></line>
-  </svg>
-);
-
+/**
+ * Компонент для завантаження CSV-файлів із замовленнями.
+ * Підтримує drag-and-drop, клієнтську валідацію формату та розміру файлу,
+ * а також відображає детальну статистику та список помилок після імпорту.
+ */
 export const FileUploader = () => {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportCSVResponse | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  /**
+   * Обробник події додавання файлу в dropzone.
+   * Виконує первинну перевірку розширення та розміру файлу (до 5 МБ).
+   */
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
     if (!selectedFile) return;
 
     if (!selectedFile.name.endsWith('.csv')) {
-      toast.error("Будь ласка, оберіть файл формату .csv");
+      toast.error("Помилка: можна завантажувати лише .csv файли");
+      return;
+    }
+
+    const MAX_SIZE_MB = 5;
+    if (selectedFile.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(`Помилка: файл занадто великий (максимум ${MAX_SIZE_MB} МБ)`);
       return;
     }
 
@@ -52,9 +43,15 @@ export const FileUploader = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'text/csv': ['.csv'] },
+    multiple: false,
+    disabled: loading,
     maxFiles: 1
   });
 
+  /**
+   * Відправляє обраний файл на сервер.
+   * Оновлює стан компонента залежно від успішності операції та кількості помилок у CSV.
+   */
   const handleUpload = async () => {
     if (!file) return;
 
@@ -126,6 +123,8 @@ export const FileUploader = () => {
           </Box>
         )}
       </Paper>
+      
+      
 
       <Button
         variant="contained"
@@ -162,21 +161,21 @@ export const FileUploader = () => {
           {result && (
             <Box>
               {/* Якщо все ідеально (без помилок) */}
-              {result.error_count === 0 ? (
+              {result?.error_count === 0 ? (
                 <Alert severity="success" sx={{ mb: 3, borderRadius: 2 }}>
                   <AlertTitle sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Успішно!</AlertTitle>
-                  Усі <strong>{result.success_count}</strong> рядків було завантажено та оброблено без жодної помилки.
+                  Усі <strong>{result?.success_count}</strong> рядків було завантажено та оброблено без жодної помилки.
                 </Alert>
               ) : (
                 /* Якщо є помилки */
                 <>
                   <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
                     <Box sx={{ flex: 1, p: 2, bgcolor: 'success.50', borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'success.200' }}>
-                      <Typography variant="h5" color="success.main" fontWeight="bold">{result.success_count}</Typography>
+                      <Typography variant="h5" color="success.main" fontWeight="bold">{result?.success_count}</Typography>
                       <Typography variant="body2" color="success.main">Успішних</Typography>
                     </Box>
                     <Box sx={{ flex: 1, p: 2, bgcolor: 'error.50', borderRadius: 2, textAlign: 'center', border: '1px solid', borderColor: 'error.200' }}>
-                      <Typography variant="h5" color="error.main" fontWeight="bold">{result.error_count}</Typography>
+                      <Typography variant="h5" color="error.main" fontWeight="bold">{result?.error_count}</Typography>
                       <Typography variant="body2" color="error.main">Помилок</Typography>
                     </Box>
                   </Stack>
@@ -188,8 +187,8 @@ export const FileUploader = () => {
 
                   <Paper variant="outlined" sx={{ maxHeight: 250, overflowY: 'auto', borderRadius: 2 }}>
                     <List dense disablePadding>
-                      {result.errors.map((err, index) => (
-                        <ListItem key={index} divider={index < result.errors.length - 1} sx={{ py: 1.5 }}>
+                      {result?.errors?.map((err, index) => (
+                        <ListItem key={index} divider={index < (result?.errors?.length || 0) - 1} sx={{ py: 1.5 }}>
                           <ListItemText 
                             primary={`Рядок: ${err.row}`} 
                             secondary={err.reason}

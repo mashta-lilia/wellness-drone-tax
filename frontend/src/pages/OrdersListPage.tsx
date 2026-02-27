@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Grid, Typography, Box, Collapse, IconButton, Chip,
+  Grid, Typography, Box,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
   TablePagination, CircularProgress, TextField, InputAdornment,
-  TableSortLabel, Stack, Divider, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions 
+  TableSortLabel, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions 
 } from '@mui/material';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -12,8 +12,7 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import PercentIcon from '@mui/icons-material/Percent';
 import SearchIcon from '@mui/icons-material/Search';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import axios from 'axios';
@@ -21,92 +20,16 @@ import { toast } from 'react-toastify';
 import SummaryCard from '../components/SummaryCard';
 import type { Order } from '../types/order';
 import { clearAllOrders } from '../api/orders';
+import { OrderRow } from '../components/orders/OrderRow';
 
 type OrderDirection = 'asc' | 'desc';
 
-const OrderRow = ({ order }: { order: Order }) => {
-  const [open, setOpen] = React.useState(false);
-  const breakdown = order.breakdown || { state_rate: 0, county_rate: 0, city_rate: 0, special_rates: 0 };
 
-  return (
-    <React.Fragment>
-      <TableRow sx={{ '& > *': { borderBottom: 'unset' }, bgcolor: open ? '#f4f6f8' : 'inherit', transition: 'background-color 0.3s' }}>
-        <TableCell>
-          <IconButton size="small" onClick={() => setOpen(!open)}>
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
-          {order.id?.split('-')[0]}...
-        </TableCell>
-        <TableCell>{`${order.latitude.toFixed(4)} / ${order.longitude.toFixed(4)}`}</TableCell>
-        <TableCell align="right">${order.subtotal.toFixed(2)}</TableCell>
-        <TableCell align="right">
-          <Chip 
-            label={`${((order.composite_tax_rate || 0) * 100).toFixed(3)}%`} 
-            size="small" 
-            color="primary" 
-            variant="outlined" 
-            sx={{ fontWeight: 'bold' }}
-          />
-        </TableCell>
-        <TableCell align="right">${order.tax_amount?.toFixed(2)}</TableCell>
-        <TableCell align="right" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-          ${order.total_amount?.toFixed(2)}
-        </TableCell>
-      </TableRow>
-      
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ m: 2, p: 3, backgroundColor: '#fff', borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.02)' }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, color: '#333' }}>
-                Деталізація податків (Breakdown)
-              </Typography>
-              
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-                <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', textAlign: 'center', borderRadius: 2 }}>
-                  <Typography variant="caption" color="text.secondary" display="block">Штат Нью-Йорк</Typography>
-                  <Typography variant="body1" fontWeight="bold" color="#2e7d32">
-                    {(breakdown.state_rate * 100).toFixed(3)}%
-                  </Typography>
-                </Paper>
-                
-                <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', textAlign: 'center', borderRadius: 2 }}>
-                  <Typography variant="caption" color="text.secondary" display="block">Округ (County)</Typography>
-                  <Typography variant="body1" fontWeight="bold" color="#1565c0">
-                    {(breakdown.county_rate * 100).toFixed(3)}%
-                  </Typography>
-                </Paper>
-                
-                {breakdown.special_rates > 0 && (
-                  <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#fff3e0', border: '1px solid #ffe0b2', textAlign: 'center', borderRadius: 2 }}>
-                    <Typography variant="caption" color="text.secondary" display="block">MCTD (Транспорт)</Typography>
-                    <Typography variant="body1" fontWeight="bold" color="#e65100">
-                      {(breakdown.special_rates * 100).toFixed(3)}%
-                    </Typography>
-                  </Paper>
-                )}
-              </Stack>
-              
-              <Divider sx={{ mb: 2 }} />
-              
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>
-                  Застосовані юрисдикції:
-                </Typography>
-                {order.jurisdictions?.map((j) => (
-                  <Chip key={j} label={j} size="small" sx={{ bgcolor: '#e3f2fd', color: '#1565c0', fontWeight: 'medium' }} />
-                ))}
-              </Box>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </React.Fragment>
-  );
-};
-
+/**
+ * Головна сторінка зі списком замовлень.
+ * Містить таблицю з пагінацією, сортуванням, фільтрацією за ID та датою.
+ * Надає функціонал для експорту даних у CSV та повного очищення бази.
+ */
 export const OrdersListPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -114,7 +37,7 @@ export const OrdersListPage = () => {
   const [avgRateDb, setAvgRateDb] = useState(0);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [openClearDialog, setOpenClearDialog] = useState(false); // Стан для модального вікна
+  const [openClearDialog, setOpenClearDialog] = useState(false);
   
   const [searchId, setSearchId] = useState('');
   const [filterDate, setFilterDate] = useState<Date | null>(null);
@@ -130,6 +53,10 @@ export const OrdersListPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  /**
+   * Обробник зміни напрямку або колонки сортування.
+   * @param property - Назва поля, за яким відбувається сортування.
+   */
   const handleRequestSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -137,6 +64,10 @@ export const OrdersListPage = () => {
     setPage(0);
   };
 
+  /**
+   * Завантажує список замовлень з сервера, враховуючи поточну сторінку,
+   * ліміт, сортування та активні фільтри.
+   */
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -157,7 +88,10 @@ export const OrdersListPage = () => {
     }
   };
 
-  // ФУНКЦІЯ ОЧИЩЕННЯ БД
+  /**
+   * Виконує запит на повне очищення бази даних.
+   * Після успішного видалення скидає всі фільтри та оновлює таблицю.
+   */
   const confirmClearDatabase = async () => {
     setOpenClearDialog(false);
     setLoading(true);
@@ -177,7 +111,10 @@ export const OrdersListPage = () => {
     }
   };
 
-  // ФУНКЦІЯ ЕКСПОРТУ
+  /**
+   * Генерує та завантажує CSV-файл із поточним списком замовлень
+   * (враховуючи застосовані фільтри, але ігноруючи пагінацію).
+   */
   const handleExportCSV = async () => {
     setExporting(true);
     try {
@@ -241,7 +178,8 @@ export const OrdersListPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
 
-const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
+  const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
+  
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
@@ -249,7 +187,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
 
   return (
     <Box sx={{ pb: 5 }}>
-      {/* Шапка з кнопками */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333' }}>
           Головний список замовлень
@@ -436,7 +373,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
         />
       </TableContainer>
 
-      {/* --- МОДАЛЬНЕ ВІКНО ПІДТВЕРДЖЕННЯ ВИДАЛЕННЯ --- */}
       <Dialog
         open={openClearDialog}
         onClose={() => setOpenClearDialog(false)}
@@ -460,8 +396,6 @@ const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 };
-
