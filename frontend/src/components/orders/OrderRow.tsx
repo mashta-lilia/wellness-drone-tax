@@ -108,7 +108,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order, onCancel }) => {
             <Chip label="Скасовано" color="error" size="small" variant="outlined" sx={{ fontWeight: 'bold' }} />
           ) : (
             <Tooltip title="Скасувати замовлення">
-              <IconButton color="error" size="small" onClick={(e) => { e.stopPropagation(); if (order.id && window.confirm('Скасувати це замовлення?')) { onCancel && onCancel(order.id); } }}>
+              <IconButton color="error" size="small" onClick={(e) => { e.stopPropagation(); if (order.id && window.confirm('Скасувати це замовлення?')) { onCancel?.(order.id) } }}>
                 <CancelIcon />
               </IconButton>
             </Tooltip>
