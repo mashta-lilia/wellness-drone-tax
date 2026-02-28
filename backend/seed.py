@@ -29,3 +29,6 @@ def seed_admin():
         db.rollback()
     finally:
         db.close()
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    seed_admin()

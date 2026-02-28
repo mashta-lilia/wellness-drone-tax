@@ -5,6 +5,6 @@ python -m alembic upgrade head || echo "⚠️ Міграції вже заст�
 
 echo "🌱 Запуск Seeder'а..."
 python seed.py
-
+python create_admin.py
 echo "🔥 Запуск сервера FastAPI..."
 exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
