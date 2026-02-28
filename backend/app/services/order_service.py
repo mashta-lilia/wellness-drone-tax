@@ -14,6 +14,29 @@ class OrderService:
         self.db = db
         self.tax_service = tax_service
 
+    async def delete_order(self, order_id: str):
+        """Видалення замовлення за його ID."""
+        # Шукаємо замовлення в базі
+        order = self.db.query(Order).filter(Order.id == order_id).first()
+        
+        if not order:
+            logger.warning(f"Спроба видалити неіснуюче замовлення: {order_id}")
+            raise HTTPException(status_code=404, detail="Замовлення не знайдено")
+            
+        try:
+            self.db.delete(order)
+            self.db.commit()
+            logger.info(f"Замовлення {order_id} успішно видалено.")
+            return {
+                "status": "success", 
+                "message": "Замовлення успішно видалено", 
+                "deleted_id": order_id
+            }
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Помилка при видаленні замовлення {order_id}: {e}")
+            raise HTTPException(status_code=500, detail="Внутрішня помилка сервера при видаленні")
+        
     async def create_manual_order(self, order_data):
         """Розрахунок податків і створення одиночного замовлення."""
         tax = await self.tax_service.calculate_full_tax_info(
@@ -58,6 +81,8 @@ class OrderService:
                     col_map[col] = 'longitude'
                 elif col_lower in ['subtotal', 'сума (subtotal)', 'сума', 'amount']:
                     col_map[col] = 'subtotal'
+                elif col_lower in ['timestamp', 'date', 'datetime', 'дата', 'дата и время', 'дата та час', 'час', 'time']:
+                    col_map[col] = 'timestamp'
             
             df.rename(columns=col_map, inplace=True)
             
@@ -82,7 +107,28 @@ class OrderService:
 
             if not valid_df.empty:
                 valid_df['id'] = [str(uuid.uuid4()) for _ in range(len(valid_df))]
-                valid_df['timestamp'] = datetime.now(timezone.utc).isoformat()
+                
+                # --- ОБРОБКА ДАТИ ТА ЧАСУ З ФАЙЛУ ---
+                if 'timestamp' in valid_df.columns:
+                    # Конвертуємо значення колонки в об'єкти datetime
+                    valid_df['timestamp'] = pd.to_datetime(valid_df['timestamp'], errors='coerce')
+                    
+                    # Приводимо до UTC, якщо часового поясу немає в даних
+                    if valid_df['timestamp'].dt.tz is None:
+                        valid_df['timestamp'] = valid_df['timestamp'].dt.tz_localize('UTC')
+                    else:
+                        valid_df['timestamp'] = valid_df['timestamp'].dt.tz_convert('UTC')
+                        
+                    # Якщо є порожні/биті значення, заповнюємо їх поточним часом у UTC
+                    now_utc = pd.Timestamp.now(tz='UTC')
+                    valid_df['timestamp'] = valid_df['timestamp'].fillna(now_utc)
+                    
+                    # Переводимо у рядок формату ISO для запису в БД
+                    valid_df['timestamp'] = valid_df['timestamp'].apply(lambda x: x.isoformat())
+                else:
+                    # Якщо колонки timestamp немає, ставимо поточний час
+                    valid_df['timestamp'] = datetime.now(timezone.utc).isoformat()
+                # ------------------------------------
                 
                 columns_to_insert = [
                     'id', 'timestamp', 'latitude', 'longitude', 'subtotal', 

@@ -84,12 +84,12 @@ export const OrdersListPage = () => {
   // 2. ФУНКЦІЯ ДЛЯ СКАСУВАННЯ ЗАМОВЛЕННЯ
   const handleCancelOrder = async (id: string) => {
     try {
-      await axios.patch(`http://localhost:8000/orders/${id}/cancel`);
-      toast.success("Замовлення скасовано!");
+      await axios.delete(`http://localhost:8000/orders/${id}`);
+      toast.success("Замовлення успішно видалено!");
       fetchOrders(); 
     } catch (error) {
-      console.error(error);
-      toast.error("Не вдалося скасувати замовлення");
+      console.error("Помилка при видаленні:", error);
+      toast.error("Не вдалося видалити замовлення");
     }
   };
 

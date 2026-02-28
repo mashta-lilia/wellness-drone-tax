@@ -89,3 +89,13 @@ def clear_all_orders(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Помилка при видаленні даних з БД")
+    
+@router.delete("/{order_id}")
+async def delete_single_order(order_id: str, db: Session = Depends(get_db)):
+    """API ендпоінт для видалення одного замовлення за його ID."""
+    from app.services.tax_service import get_tax_service
+    
+    tax_service = get_tax_service()
+    order_service = OrderService(db, tax_service)
+    
+    return await order_service.delete_order(order_id)
