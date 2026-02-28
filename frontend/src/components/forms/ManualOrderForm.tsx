@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Box, Button, TextField, Typography, Paper, Stack, Divider, CircularProgress } from '@mui/material';
+import { Box, Button, TextField, Typography, Paper, Stack, Divider, CircularProgress, Chip } from '@mui/material';
 import { createManualOrder } from '../../api/orders';
 import type { Order } from '../../types/order';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
@@ -129,13 +129,32 @@ export const ManualOrderForm = () => {
               <Box sx={{ bgcolor: '#f9f9f9', p: 2, borderRadius: 2, textAlign: 'left' }}>
                 <Typography variant="body2">Штат: {formatPercent(result.breakdown.state_rate)}</Typography>
                 <Typography variant="body2">Округ: {formatPercent(result.breakdown.county_rate)}</Typography>
+                
+                {/* Новий рядок для міського податку */}
+                {result.breakdown.city_rate > 0 && (
+                  <Typography variant="body2" sx={{ color: '#6a1b9a', fontWeight: 'bold' }}>
+                    Місто: {formatPercent(result.breakdown.city_rate)}
+                  </Typography>
+                )}
+                
                 {result.breakdown.special_rates > 0 && (
-                  <Typography variant="body2">MCTD: {formatPercent(result.breakdown.special_rates)}</Typography>
+                  <Typography variant="body2" sx={{ color: '#e65100' }}>
+                    MCTD: {formatPercent(result.breakdown.special_rates)}
+                  </Typography>
                 )}
               </Box>
             )}
 
-            <Typography>Сума податку: <b>{formatCurrency(result.tax_amount || 0)}</b></Typography>
+            {/* Блок з юрисдикціями */}
+            {result.jurisdictions && result.jurisdictions.length > 0 && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, justifyContent: 'center', mt: 1 }}>
+                {result.jurisdictions.map((j) => (
+                  <Chip key={j} label={j} size="small" sx={{ bgcolor: '#e3f2fd', color: '#1565c0', fontSize: '0.75rem' }} />
+                ))}
+              </Box>
+            )}
+
+            <Typography sx={{ mt: 2 }}>Сума податку: <b>{formatCurrency(result.tax_amount || 0)}</b></Typography>
             
             <Typography variant="h4" sx={{ color: '#1976d2', fontWeight: 'bold', mt: 1 }}>
               {formatCurrency(result.total_amount || 0)}

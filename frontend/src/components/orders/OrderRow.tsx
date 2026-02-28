@@ -59,6 +59,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
               </Typography>
               
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
+                {/* 1. Штат */}
                 <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', textAlign: 'center', borderRadius: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block">Штат Нью-Йорк</Typography>
                   <Typography variant="body1" fontWeight="bold" color="#2e7d32">
@@ -66,13 +67,25 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
                   </Typography>
                 </Paper>
                 
+                {/* 2. Округ */}
                 <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', textAlign: 'center', borderRadius: 2 }}>
                   <Typography variant="caption" color="text.secondary" display="block">Округ (County)</Typography>
                   <Typography variant="body1" fontWeight="bold" color="#1565c0">
                     {(breakdown.county_rate * 100).toFixed(3)}%
                   </Typography>
                 </Paper>
+
+                {/* 3. Місто (НОВИЙ БЛОК - відображається тільки якщо є міський податок) */}
+                {breakdown.city_rate > 0 && (
+                  <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f3e5f5', border: '1px solid #e1bee7', textAlign: 'center', borderRadius: 2 }}>
+                    <Typography variant="caption" color="text.secondary" display="block">Місто (City)</Typography>
+                    <Typography variant="body1" fontWeight="bold" color="#6a1b9a">
+                      {(breakdown.city_rate * 100).toFixed(3)}%
+                    </Typography>
+                  </Paper>
+                )}
                 
+                {/* 4. MCTD */}
                 {breakdown.special_rates > 0 && (
                   <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#fff3e0', border: '1px solid #ffe0b2', textAlign: 'center', borderRadius: 2 }}>
                     <Typography variant="caption" color="text.secondary" display="block">MCTD (Транспорт)</Typography>
