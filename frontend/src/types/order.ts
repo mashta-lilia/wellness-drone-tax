@@ -15,6 +15,7 @@ export interface TaxBreakdown {
 export interface Order {
   /** Унікальний ідентифікатор замовлення (UUID). */
   id?: string;
+  timestamp?: string;
   latitude: number;
   longitude: number;
   subtotal: number;
@@ -28,6 +29,7 @@ export interface Order {
   breakdown?: TaxBreakdown;
   /** Список назв юрисдикцій, що застосовуються до цього замовлення. */
   jurisdictions?: string[];
+  status?: string;
 }
 
 /**
