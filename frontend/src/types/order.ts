@@ -73,11 +73,8 @@ export interface LoginPayload {
  * Відповідь сервера після успішної авторизації користувача.
  */
 export interface LoginResponse {
-  /** JWT-токен для доступу до захищених ендпоінтів. */
-  token: string;
-  /** Час життя токена в секундах. */
-  expires_in?: number;
-  /** Базова інформація про авторизованого користувача. */
+  access_token: string;       // JWT-токен
+  expires_in?: number; // необов'язково, якщо бекенд віддає час життя токена
   user?: {
     id: string;
     email: string;

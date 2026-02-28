@@ -10,7 +10,17 @@ import type { LoginPayload, LoginResponse } from '../types/order';
  */
 export const loginUser = async (data: LoginPayload): Promise<LoginResponse> => {
   try {
-    const response = await api.post<LoginResponse>('/auth/login', data);
+    const formData = new URLSearchParams();
+    
+    formData.append('username', data.email); 
+    formData.append('password', data.password);
+
+    const response = await api.post<LoginResponse>('/admins/login', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+    
     return response.data;
   } catch (err: unknown) {
     // Обробка помилки невірних облікових даних

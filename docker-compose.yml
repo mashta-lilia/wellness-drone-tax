@@ -4,9 +4,8 @@ services:
     container_name: drone-tax-backend
     ports:
       - "8000:8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - PYTHONUNBUFFERED=1
+    env_file:
+      - ./.env
     volumes:
       - ./backend:/app
     restart: always
