@@ -29,13 +29,19 @@ export const LoginPage: React.FC = () => {
     try {
       const response = await loginUser({ email, password });
     
-      localStorage.setItem('jwt_token', response.token);
+      // 1. Зберігаємо токен (FastAPI повертає саме access_token)
+      localStorage.setItem('jwt_token', response.access_token); 
+
+      // 2. Беремо email з локального стану форми, відрізаємо все після @
+      const namePart = email.split('@')[0];
+      // Робимо першу літеру великою: 'admin' -> 'Admin'
+      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
       
-      const displayName = response.user?.name || response.user?.email || 'Користувач';
+      // Зберігаємо гарне ім'я
       localStorage.setItem('user_name', displayName);
       
-      navigate('/');
-      toast.success('Вхід виконано успішно!');
+      navigate('/'); // редирект на головну після входу
+      toast.success('Вхід виконано успішно!'); 
     } catch (err: unknown) {
       const error = err as Error;
       toast.error(error.message || 'Невірний логін або пароль');

@@ -12,14 +12,10 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import type { Order } from '../../types/order';
 
-/**
- * Властивості компонента OrderRow.
- */
 export interface OrderRowProps {
   order: Order;
 }
 
-// Інтерфейс для даних про погоду
 interface WeatherData {
   temperature: number;
   windSpeed: number;
@@ -28,19 +24,24 @@ interface WeatherData {
   reason?: string;
 }
 
-/**
- * Компонент окремого рядка таблиці замовлень.
- * Підтримує розгортання (Collapse) для відображення деталізації податкових ставок та погоди.
- */
 export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
   const [open, setOpen] = useState(false);
   const breakdown = order.breakdown || { state_rate: 0, county_rate: 0, city_rate: 0, special_rates: 0 };
 
-  // Стан для модуля погоди
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
 
-  // Ефект для завантаження погоди при відкритті панелі
+  // Форматуємо дату для красивого відображення
+  const formattedDate = order.timestamp 
+    ? new Date(order.timestamp).toLocaleString('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
   useEffect(() => {
     if (open && !weather && !weatherLoading) {
       const fetchWeather = async () => {
@@ -56,7 +57,6 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
             const wind = data.current.wind_speed_10m;
             const precip = data.current.precipitation;
 
-            // Логіка визначення безпеки польоту
             let isSafe = true;
             let reason = '';
 
@@ -102,6 +102,10 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
         <TableCell sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
           {order.id?.split('-')[0]}...
         </TableCell>
+        {/* НОВА КОЛОНКА З ДАТОЮ */}
+        <TableCell sx={{ color: 'text.secondary', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+          {formattedDate}
+        </TableCell>
         <TableCell>{`${order.latitude.toFixed(4)} / ${order.longitude.toFixed(4)}`}</TableCell>
         <TableCell align="right">${order.subtotal.toFixed(2)}</TableCell>
         <TableCell align="right">
@@ -120,9 +124,9 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
       </TableRow>
       
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+        {/* colSpan змінено з 7 на 8 через нову колонку */}
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            {/* Flex-контейнер для розділення блоків податків та погоди */}
             <Box sx={{ m: 2, display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
               
               {/* ОРИГІНАЛЬНИЙ БЛОК: Деталізація податків */}
@@ -146,6 +150,15 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
                     </Typography>
                   </Paper>
                   
+                  {breakdown.city_rate > 0 && (
+                    <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#f3e5f5', border: '1px solid #e1bee7', textAlign: 'center', borderRadius: 2 }}>
+                      <Typography variant="caption" color="text.secondary" display="block">Місто (City)</Typography>
+                      <Typography variant="body1" fontWeight="bold" color="#6a1b9a">
+                        {(breakdown.city_rate * 100).toFixed(3)}%
+                      </Typography>
+                    </Paper>
+                  )}
+                  
                   {breakdown.special_rates > 0 && (
                     <Paper elevation={0} sx={{ p: 2, flex: 1, bgcolor: '#fff3e0', border: '1px solid #ffe0b2', textAlign: 'center', borderRadius: 2 }}>
                       <Typography variant="caption" color="text.secondary" display="block">MCTD (Транспорт)</Typography>
@@ -168,7 +181,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order }) => {
                 </Box>
               </Box>
 
-              {/* НОВИЙ БЛОК: Статус метеорологічної безпеки польоту */}
+              {/* БЛОК: Статус метеорологічної безпеки польоту */}
               <Box sx={{ p: 3, flex: 1, backgroundColor: '#fff', borderRadius: 2, border: '1px solid #e0e0e0', boxShadow: 'inset 0 0 10px rgba(0,0,0,0.02)', position: 'relative' }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 2, color: '#333', display: 'flex', alignItems: 'center', gap: 1 }}>
                   <span>Метеорологічна безпека (Real-time)</span>

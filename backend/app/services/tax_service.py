@@ -11,6 +11,10 @@ from shapely.strtree import STRtree
 logger = logging.getLogger(__name__)
 
 class TaxCalculatorService:
+    """
+    Сервіс для геопросторового розрахунку податків на доставку у штаті Нью-Йорк.
+    Використовує R-Tree для швидкого пошуку юрисдикцій за координатами.
+    """
     def __init__(self):
         self.polygons = []
         self.county_names = []
@@ -26,8 +30,10 @@ class TaxCalculatorService:
             "Rockland", "Nassau", "Suffolk", "Orange", "Putnam", "Dutchess", "Westchester"
         ]
         
+        self.nyc_counties = ["New York", "Bronx", "Kings", "Queens", "Richmond"]
+        self.nyc_city_rate = 0.045
+        
         self.county_tax_rates = {
-            "New York": 0.045, "Bronx": 0.045, "Kings": 0.045, "Queens": 0.045, "Richmond": 0.045,
             "Erie": 0.0475, "Oneida": 0.0475,
             "Allegany": 0.045,
             "Nassau": 0.0425, "Suffolk": 0.0425, "Herkimer": 0.0425,
@@ -37,7 +43,7 @@ class TaxCalculatorService:
         }
 
     def _load_geodata(self):
-        """Завантажує GeoJSON та будує просторове R-дерево."""
+        """Завантажує GeoJSON та ініціалізує просторовий індекс (R-Tree)."""
         filepath = os.path.join(os.path.dirname(__file__), "..", "data", "ny_counties.geojson")
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -45,7 +51,7 @@ class TaxCalculatorService:
                 for feature in data.get('features', []):
                     name = feature['properties'].get('name', '').replace(' County', '').strip()
                     
-                    # Буфер для охоплення мостів та прибережної зони
+                    # Буфер 0.001 градуса (~100м) для обробки локацій на мостах або узбережжях
                     polygon = shape(feature['geometry']).buffer(0.001).simplify(0.002)
                     
                     self.polygons.append(polygon)
@@ -68,16 +74,25 @@ class TaxCalculatorService:
         return None 
 
     async def calculate_full_tax_info(self, lat: float, lon: float, subtotal: float) -> dict:
-        """Розрахунок податків для одиночного замовлення."""
+        """Розрахунок податків для одиночного замовлення з точним розподілом юрисдикцій."""
         county = self._get_county_by_coords(lat, lon)
         if not county:
             raise HTTPException(status_code=400, detail="Точка знаходиться поза межами штату Нью-Йорк.")
 
-        local_rate = self.county_tax_rates.get(county, 0.04)
+        is_nyc = county in self.nyc_counties
+        
+        city_rate = self.nyc_city_rate if is_nyc else 0.0
+        county_rate = 0.0 if is_nyc else self.county_tax_rates.get(county, 0.04)
         special_rate = self.mctd_rate if county in self.mctd_counties else 0.0
         
-        total_rate = self.state_tax_rate + local_rate + special_rate
+        total_rate = self.state_tax_rate + county_rate + city_rate + special_rate
         tax_amount = subtotal * total_rate
+
+        jurisdictions = ["New York State"]
+        if is_nyc:
+            jurisdictions.extend(["New York City", f"{county} County (Borough)"])
+        else:
+            jurisdictions.append(f"{county} County")
 
         return {
             "composite_tax_rate": round(total_rate, 5),
@@ -85,15 +100,15 @@ class TaxCalculatorService:
             "total_amount": round(subtotal + tax_amount, 2),
             "breakdown": {
                 "state_rate": self.state_tax_rate,
-                "county_rate": local_rate,
-                "city_rate": 0.0,
+                "county_rate": county_rate,
+                "city_rate": city_rate,
                 "special_rates": special_rate
             },
-            "jurisdictions": ["New York State", f"{county} County"]
+            "jurisdictions": jurisdictions
         }
 
     def enrich_dataframe_with_taxes(self, df: pd.DataFrame):
-        """Векторизована обробка масиву координат для розрахунку податків."""
+        """Векторизована обробка податків для масиву замовлень (Pandas DataFrame)."""
         points = shapely.points(df['longitude'], df['latitude'])
         pt_idx, poly_idx = self.spatial_index.query(points, predicate='intersects')
         
@@ -109,27 +124,34 @@ class TaxCalculatorService:
             return valid_df, invalid_df
 
         valid_df['state_tax_rate'] = self.state_tax_rate
-        valid_df['county_tax_rate'] = valid_df['county'].map(self.county_tax_rates).fillna(0.04)
+        valid_df['is_nyc'] = valid_df['county'].isin(self.nyc_counties)
+        
+        valid_df['city_rate'] = np.where(valid_df['is_nyc'], self.nyc_city_rate, 0.0)
+        valid_df['county_tax_rate'] = np.where(
+            valid_df['is_nyc'], 
+            0.0, 
+            valid_df['county'].map(self.county_tax_rates).fillna(0.04)
+        )
         
         valid_df['mctd_rate'] = 0.0
         is_mctd = valid_df['county'].isin(self.mctd_counties)
         valid_df.loc[is_mctd, 'mctd_rate'] = self.mctd_rate
         
-        valid_df['composite_tax_rate'] = valid_df['state_tax_rate'] + valid_df['county_tax_rate'] + valid_df['mctd_rate']
+        valid_df['composite_tax_rate'] = valid_df['state_tax_rate'] + valid_df['county_tax_rate'] + valid_df['city_rate'] + valid_df['mctd_rate']
         valid_df['tax_amount'] = valid_df['subtotal'] * valid_df['composite_tax_rate']
         valid_df['total_amount'] = valid_df['subtotal'] + valid_df['tax_amount']
         
         valid_df['breakdown'] = [
-            json.dumps({"state_rate": sr, "county_rate": cr, "city_rate": 0.0, "special_rates": mr})
-            for sr, cr, mr in zip(valid_df['state_tax_rate'], valid_df['county_tax_rate'], valid_df['mctd_rate'])
+            json.dumps({"state_rate": sr, "county_rate": cr, "city_rate": cir, "special_rates": mr})
+            for sr, cr, cir, mr in zip(valid_df['state_tax_rate'], valid_df['county_tax_rate'], valid_df['city_rate'], valid_df['mctd_rate'])
         ]
+        
         valid_df['jurisdictions'] = [
-            json.dumps(["New York State", f"{county} County"]) 
-            for county in valid_df['county']
+            json.dumps(["New York State", "New York City", f"{county} County"] if is_nyc else ["New York State", f"{county} County"])
+            for county, is_nyc in zip(valid_df['county'], valid_df['is_nyc'])
         ]
         
         return valid_df, invalid_df
-
 
 _instance = None
 

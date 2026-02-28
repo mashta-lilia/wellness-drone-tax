@@ -297,6 +297,7 @@ export const OrdersListPage = () => {
             <TableRow>
               <TableCell width={50} />
               <TableCell sx={{ fontWeight: 'bold' }}>ID Замовлення</TableCell>
+              <TableCell align="left" sx={{ fontWeight: 'bold', pl: 2 }}>Дата</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Координати</TableCell>
               
               <TableCell align="right">
