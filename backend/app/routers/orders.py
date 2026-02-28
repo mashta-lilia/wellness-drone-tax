@@ -9,7 +9,10 @@ from app.schemas.order import OrderCreate, OrderResponse
 from app.services.tax_service import get_tax_service, TaxCalculatorService
 from app.services.order_service import OrderService
 
-router = APIRouter(tags=["Orders"])
+router = APIRouter(
+    prefix="/orders",
+    tags=["orders"]
+)
 
 def get_order_service(
     db: Session = Depends(get_db), 

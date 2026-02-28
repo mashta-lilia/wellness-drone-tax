@@ -11,7 +11,7 @@ from app.core.security import verify_password, create_access_token
 from app.core.config import settings
 
 router = APIRouter(
-    prefix="/api/admins",
+    prefix="/admins",
     tags=["admins"]
 )
 @router.post("/login", response_model=dict)

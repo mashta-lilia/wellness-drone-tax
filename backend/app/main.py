@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import orders, taxes, admins
+from app.routers import orders, admins
 from app.core.config import settings
 
 app = FastAPI(
@@ -25,8 +25,8 @@ app.add_middleware(
 
 # Підключаємо роутери
 app.include_router(orders.router)
-app.include_router(taxes.router)
 app.include_router(admins.router)
+
 @app.get("/")
 def read_root():
     """Health check ендпоінт для перевірки статусу сервера."""
