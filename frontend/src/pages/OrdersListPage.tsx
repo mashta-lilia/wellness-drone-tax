@@ -24,12 +24,6 @@ import { OrderRow } from '../components/orders/OrderRow';
 
 type OrderDirection = 'asc' | 'desc';
 
-
-/**
- * Головна сторінка зі списком замовлень.
- * Містить таблицю з пагінацією, сортуванням, фільтрацією за ID та датою.
- * Надає функціонал для експорту даних у CSV та повного очищення бази.
- */
 export const OrdersListPage = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -40,7 +34,11 @@ export const OrdersListPage = () => {
   const [openClearDialog, setOpenClearDialog] = useState(false);
   
   const [searchId, setSearchId] = useState('');
-  const [filterDate, setFilterDate] = useState<Date | null>(null);
+  
+  // 1. СТАН ДЛЯ ДІАПАЗОНУ ДАТ
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
+  const [startDate, endDate] = dateRange;
+  
   const [order, setOrder] = useState<OrderDirection>('desc');
   const [orderBy, setOrderBy] = useState<string>('timestamp');
 
@@ -53,10 +51,6 @@ export const OrdersListPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  /**
-   * Обробник зміни напрямку або колонки сортування.
-   * @param property - Назва поля, за яким відбувається сортування.
-   */
   const handleRequestSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
@@ -64,17 +58,16 @@ export const OrdersListPage = () => {
     setPage(0);
   };
 
-  /**
-   * Завантажує список замовлень з сервера, враховуючи поточну сторінку,
-   * ліміт, сортування та активні фільтри.
-   */
   const fetchOrders = async () => {
     setLoading(true);
     try {
       let url = `http://localhost:8000/orders?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
       if (searchId) url += `&search=${searchId}`;
-      if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
-
+      
+      // Додаємо обидві дати до запиту
+      if (startDate) url += `&start_date=${startDate.toISOString().split('T')[0]}`;
+      if (endDate) url += `&end_date=${endDate.toISOString().split('T')[0]}`;
+      
       const response = await axios.get(url);
       setOrders(response.data.items || []);
       setTotalCount(response.data.total || 0);
@@ -88,10 +81,18 @@ export const OrdersListPage = () => {
     }
   };
 
-  /**
-   * Виконує запит на повне очищення бази даних.
-   * Після успішного видалення скидає всі фільтри та оновлює таблицю.
-   */
+  // 2. ФУНКЦІЯ ДЛЯ СКАСУВАННЯ ЗАМОВЛЕННЯ
+  const handleCancelOrder = async (id: string) => {
+    try {
+      await axios.patch(`http://localhost:8000/orders/${id}/cancel`);
+      toast.success("Замовлення скасовано!");
+      fetchOrders(); 
+    } catch (error) {
+      console.error(error);
+      toast.error("Не вдалося скасувати замовлення");
+    }
+  };
+
   const confirmClearDatabase = async () => {
     setOpenClearDialog(false);
     setLoading(true);
@@ -101,7 +102,7 @@ export const OrdersListPage = () => {
       toast.success("Базу даних успішно очищено!");
       setPage(0);
       setSearchId('');
-      setFilterDate(null);
+      setDateRange([null, null]); // Очищаємо обидві дати
       fetchOrders(); 
     } catch (error: unknown) {
       const err = error as Error;
@@ -111,16 +112,15 @@ export const OrdersListPage = () => {
     }
   };
 
-  /**
-   * Генерує та завантажує CSV-файл із поточним списком замовлень
-   * (враховуючи застосовані фільтри, але ігноруючи пагінацію).
-   */
   const handleExportCSV = async () => {
     setExporting(true);
     try {
       let url = `http://localhost:8000/orders?page=1&limit=10000&sortBy=${orderBy}&sortOrder=${order}`;
       if (searchId) url += `&search=${searchId}`;
-      if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
+      
+      // Для експорту також використовуємо діапазон
+      if (startDate) url += `&start_date=${startDate.toISOString().split('T')[0]}`;
+      if (endDate) url += `&end_date=${endDate.toISOString().split('T')[0]}`;
 
       const response = await axios.get(url);
       const dataToExport: Order[] = response.data.items || [];
@@ -131,7 +131,7 @@ export const OrdersListPage = () => {
       }
 
       const headers = [
-        'ID Замовлення', 'Широта (Lat)', 'Довгота (Lon)', 'Сума (Subtotal)', 
+        'ID Замовлення', 'Статус', 'Широта (Lat)', 'Довгота (Lon)', 'Сума (Subtotal)', 
         'Композитна ставка', 'Сума податку', 'Всього до сплати', 
         'Ставка Штату', 'Ставка Округу', 'Спец. Ставка (MCTD)', 'Юрисдикції'
       ];
@@ -141,6 +141,7 @@ export const OrdersListPage = () => {
         const bd = o.breakdown || { state_rate: 0, county_rate: 0, city_rate: 0, special_rates: 0 };
         const row = [
           o.id,
+          o.status || 'active', // Додали статус в експорт
           o.latitude,
           o.longitude,
           o.subtotal.toFixed(2),
@@ -173,10 +174,11 @@ export const OrdersListPage = () => {
     }
   };
 
+  // 3. ОНОВЛЕНИЙ МАСИВ ЗАЛЕЖНОСТЕЙ
   useEffect(() => {
     fetchOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, rowsPerPage, searchId, order, orderBy, filterDate]);
+  }, [page, rowsPerPage, searchId, order, orderBy, startDate, endDate]);
 
   const handleChangePage = (_event: unknown, newPage: number) => { setPage(newPage); };
   
@@ -255,13 +257,19 @@ export const OrdersListPage = () => {
           }}
         />
 
+        {/* 4. ОНОВЛЕНИЙ ВІДЖЕТ КАЛЕНДАРЯ */}
         <DatePicker
-          selected={filterDate}
-          onChange={(date: Date | null) => { 
-            setFilterDate(date);
-            setPage(0);
+          selectsRange={true}
+          startDate={startDate}
+          endDate={endDate}
+          onChange={(update: [Date | null, Date | null]) => { 
+            setDateRange(update);
+            // Робимо запит тільки якщо обрано обидві дати, або якщо фільтр очищено
+            if ((update[0] && update[1]) || (!update[0] && !update[1])) {
+              setPage(0);
+            }
           }}
-          placeholderText="Фільтр за датою..."
+          placeholderText="Період: з ... по ..."
           isClearable
           dateFormat="yyyy-MM-dd"
           customInput={
@@ -297,7 +305,16 @@ export const OrdersListPage = () => {
             <TableRow>
               <TableCell width={50} />
               <TableCell sx={{ fontWeight: 'bold' }}>ID Замовлення</TableCell>
-              <TableCell align="left" sx={{ fontWeight: 'bold', pl: 2 }}>Дата</TableCell>
+              <TableCell align="left" sx={{ pl: 2 }}>
+                <TableSortLabel
+                  active={orderBy === 'timestamp'}
+                  direction={orderBy === 'timestamp' ? order : 'asc'}
+                  onClick={() => handleRequestSort('timestamp')}
+                  sx={{ fontWeight: 'bold' }}
+                >
+                  Дата
+                </TableSortLabel>
+              </TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Координати</TableCell>
               
               <TableCell align="right">
@@ -343,17 +360,24 @@ export const OrdersListPage = () => {
                   Всього до сплати
                 </TableSortLabel>
               </TableCell>
+              
+              {/* 5. ДОДАЛИ КОЛОНКУ ДЛЯ КНОПКИ СКАСУВАННЯ */}
+              <TableCell width={80} align="center" sx={{ fontWeight: 'bold' }}>Дії</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {orders.length > 0 ? (
               orders.map((order) => (
-                <OrderRow key={order.id} order={order} />
+                <OrderRow 
+                  key={order.id} 
+                  order={order} 
+                  onCancel={handleCancelOrder} // 6. ПЕРЕДАЄМО ФУНКЦІЮ У ДОЧІРНІЙ КОМПОНЕНТ
+                />
               ))
             ) : (
               !loading && (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 5, color: 'text.secondary' }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 5, color: 'text.secondary' }}>
                     Замовлень не знайдено. Спробуйте змінити фільтри або додати нові замовлення.
                   </TableCell>
                 </TableRow>

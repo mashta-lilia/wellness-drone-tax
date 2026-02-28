@@ -29,6 +29,7 @@ export interface Order {
   breakdown?: TaxBreakdown;
   /** Список назв юрисдикцій, що застосовуються до цього замовлення. */
   jurisdictions?: string[];
+  status?: string;
 }
 
 /**
