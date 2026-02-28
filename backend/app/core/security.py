@@ -3,7 +3,39 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt  
 from app.core.config import settings
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.db.models.models import Admin
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="admins/login")
+
+def get_current_admin(
+    token: str = Depends(oauth2_scheme), 
+    db: Session = Depends(get_db)
+) -> Admin:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Не удалось подтвердить учетные данные",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        # Декодируем токен
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+        
+    # Проверяем наличие админа в базе данных
+    admin = db.query(Admin).filter(Admin.email == email).first()
+    if admin is None:
+        raise credentials_exception
+        
+    return admin
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 

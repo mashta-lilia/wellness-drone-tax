@@ -34,10 +34,16 @@ instance.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
-      toast.error('Сесія завершилася. Будь ласка, увійдіть знову.');
-      window.location.href = '/login'; 
+      localStorage.removeItem('user_name'); // Чистим всё
+      
+      // Чтобы не редиректить бесконечно, если мы уже на логине
+      if (!window.location.pathname.includes('/login')) {
+        toast.error('Сесія завершилася. Будь ласка, увійдіть знову.');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000); // Даем пользователю увидеть ошибку
+      }
     }
-    
     return Promise.reject(error);
   }
 );
