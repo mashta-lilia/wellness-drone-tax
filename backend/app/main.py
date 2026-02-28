@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import orders, taxes  
+from app.routers import orders, taxes, admins
 from app.core.config import settings # Використовуємо наш конфіг
 
 app = FastAPI(title="Wellness Drone Tax")
@@ -23,7 +23,7 @@ app.add_middleware(
 # Підключаємо роутери
 app.include_router(orders.router)
 app.include_router(taxes.router)
-
+app.include_router(admins.router)
 @app.get("/")
 def read_root():
-    return {"message": "Wellness Drone Tax API is running!"}
+    return {"status": "success", "message": "Wellness Drone Tax API is running!"}

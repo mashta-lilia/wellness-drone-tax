@@ -15,11 +15,21 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-        const response = await loginUser({ email, password });
+      const response = await loginUser({ email, password });
     
-      localStorage.setItem('jwt_token', response.token); // зберігаємо JWT
-      const displayName = response.user?.name || response.user?.email || 'Користувач';
-    localStorage.setItem('user_name', displayName);
+      // 1. Зберігаємо токен (FastAPI повертає саме access_token)
+      // Якщо TS свариться на access_token, перевірте інтерфейс LoginResponse в types/order.ts
+      localStorage.setItem('jwt_token', response.access_token || (response as any).token); 
+
+      // 2. Беремо email з локального стану форми, відрізаємо все після @
+      // 'admin@test.com' -> 'admin'
+      const namePart = email.split('@')[0];
+      // Робимо першу літеру великою: 'admin' -> 'Admin'
+      const displayName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+      
+      // Зберігаємо гарне ім'я
+      localStorage.setItem('user_name', displayName);
+      
       navigate('/'); // редирект на головну після входу
       toast.success('Вхід виконано успішно!');
     } catch (err: unknown) {

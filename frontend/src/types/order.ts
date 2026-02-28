@@ -42,7 +42,7 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
-  token: string;       // JWT-токен
+  access_token: string;       // JWT-токен
   expires_in?: number; // необов'язково, якщо бекенд віддає час життя токена
   user?: {
     id: string;

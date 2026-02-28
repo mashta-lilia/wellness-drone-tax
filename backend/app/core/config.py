@@ -1,16 +1,20 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+import os
 class Settings(BaseSettings):
     # УБЕРИТЕ отсюда app_name и debug полностью!
 
     # Налаштування бази даних
-    DATABASE_URL: str = "sqlite:///./wellness_delivery.db"
+    DATABASE_URL: str 
     
     # Податкові ставки (значення за замовчуванням)
     NY_STATE_TAX_RATE: float = 0.04
     NY_COUNTY_TAX_RATE: float = 0.04
     MCTD_TAX_RATE: float = 0.00375
     
+    SECRET_KEY: str
+    ALGORITHM: str 
+    ACCESS_TOKEN_EXPIRE_MINUTES: int 
+
     # Географічні межі Нью-Йорка (Bounding Box)
     NY_LAT_MIN: float = 40.477399
     NY_LAT_MAX: float = 45.015865
