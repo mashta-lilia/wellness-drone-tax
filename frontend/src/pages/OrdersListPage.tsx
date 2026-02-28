@@ -15,7 +15,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import axios from 'axios';
+import api from '../api/axiosInstance';
 import { toast } from 'react-toastify';
 import SummaryCard from '../components/SummaryCard';
 import type { Order } from '../types/order';
@@ -75,7 +75,7 @@ export const OrdersListPage = () => {
       if (searchId) url += `&search=${searchId}`;
       if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
 
-      const response = await axios.get(url);
+      const response = await api.get(`/orders?page=${page + 1}&limit=${rowsPerPage}`);
       setOrders(response.data.items || []);
       setTotalCount(response.data.total || 0);
       setTotalTaxDb(response.data.total_tax || 0);
@@ -122,7 +122,7 @@ export const OrdersListPage = () => {
       if (searchId) url += `&search=${searchId}`;
       if (filterDate) url += `&date=${filterDate.toISOString().split('T')[0]}`;
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       const dataToExport: Order[] = response.data.items || [];
 
       if (dataToExport.length === 0) {
