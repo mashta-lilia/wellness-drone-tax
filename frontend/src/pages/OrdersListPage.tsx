@@ -83,7 +83,7 @@ export const OrdersListPage = () => {
   // 2. ФУНКЦІЯ ДЛЯ СКАСУВАННЯ ЗАМОВЛЕННЯ
   const handleCancelOrder = async (id: string) => {
     try {
-      await api.patch(`http://localhost:8000/orders/${id}/cancel`);
+      await api.delete(`http://localhost:8000/orders/${id}`);
       toast.success("Замовлення скасовано!");
       fetchOrders(); 
     } catch (error) {
