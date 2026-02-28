@@ -1,19 +1,31 @@
+import logging
+import sys
+import os
+from passlib.context import CryptContext
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from app.db.database import Base, engine, SessionLocal
+from app.db.models.models import User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
+
 def seed_admin():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         admin_exists = db.query(User).filter(User.username == "admin").first()
         if not admin_exists:
-            # Використовуємо просте хешування для MVP
             hashed_password = pwd_context.hash("admin123")
             new_admin = User(username="admin", password_hash=hashed_password)
             db.add(new_admin)
             db.commit()
-            print("✅ Seeder: Адмін (admin/admin123) створений!")
+            logger.info("✅ Адміністратор (admin) успішно створений.")
         else:
-            print("ℹ️ Seeder: Адмін вже є.")
+            logger.info("ℹ️ Адміністратор вже існує. Пропуск ініціалізації.")
     except Exception as e:
-        print(f"❌ Помилка сідінгу: {str(e)[:100]}")
+        logger.error(f"❌ Помилка під час ініціалізації бази даних: {e}")
         db.rollback()
     finally:
         db.close()

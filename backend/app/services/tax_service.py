@@ -1,142 +1,140 @@
-import csv
-import httpx
+import json
+import os
 import logging
-from pathlib import Path
-from functools import lru_cache
+import shapely
+import numpy as np
+import pandas as pd
 from fastapi import HTTPException
-from decimal import Decimal, ROUND_HALF_UP
-from app.core.config import settings
+from shapely.geometry import Point, shape
+from shapely.strtree import STRtree
 
-# Налаштування логера для відстеження роботи сервісу
 logger = logging.getLogger(__name__)
-
-# Список округів транспортної зони MCTD
-MCTD_COUNTIES = {
-    "new york", "bronx", "kings", "queens", "richmond", 
-    "dutchess", "nassau", "orange", "putnam", "rockland", 
-    "suffolk", "westchester"
-}
 
 class TaxCalculatorService:
     def __init__(self):
-        # Використовуємо шлях до датасету з налаштувань або обчислюємо відносно проекту
-        base_dir = Path(__file__).resolve().parent.parent
-        self.dataset_path = base_dir / "utils" / "nys_tax_rates.csv"
-        self.rates_cache = self._load_data()
-
-    def _load_data(self) -> dict:
-        """Завантаження ставок з CSV файлу при ініціалізації."""
-        rates = {}
-        try:
-            with open(self.dataset_path, mode='r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                for row in reader:
-                    county_raw = row["County"].replace(" County", "").strip().lower()
-                    rates[county_raw] = float(row["Rate"])
-            logger.info(f"✅ Податкові ставки успішно завантажені: {len(rates)} записів")
-        except FileNotFoundError:
-            logger.error(f"❌ КРИТИЧНА ПОМИЛКА: Файл не знайдено за шляхом {self.dataset_path}")
-        except Exception as e:
-            logger.error(f"❌ Помилка при читанні CSV: {e}")
-        return rates
-
-    async def _get_location_data(self, lat: float, lon: float) -> dict:
-        """Використовує Nominatim API для визначення штату та округу."""
-        url = "https://nominatim.openstreetmap.org/reverse"
-        params = {
-            "format": "json",
-            "lat": lat,
-            "lon": lon,
-            "zoom": 10,
-            "addressdetails": 1
-        }
-        headers = {"User-Agent": "WellnessDroneTax/1.0"} 
+        self.polygons = []
+        self.county_names = []
+        self.spatial_index = None
         
-        async with httpx.AsyncClient() as client:
-            try:
-                resp = await client.get(url, params=params, headers=headers, timeout=10.0)
-                if resp.status_code != 200:
-                    logger.error(f"Nominatim повернув помилку: {resp.status_code}")
-                    raise HTTPException(status_code=503, detail="Сервіс геокодування недоступний")
+        self._load_geodata()
+        
+        self.state_tax_rate = 0.04
+        self.mctd_rate = 0.00375
+        
+        self.mctd_counties = [
+            "New York", "Bronx", "Kings", "Queens", "Richmond", 
+            "Rockland", "Nassau", "Suffolk", "Orange", "Putnam", "Dutchess", "Westchester"
+        ]
+        
+        self.county_tax_rates = {
+            "New York": 0.045, "Bronx": 0.045, "Kings": 0.045, "Queens": 0.045, "Richmond": 0.045,
+            "Erie": 0.0475, "Oneida": 0.0475,
+            "Allegany": 0.045,
+            "Nassau": 0.0425, "Suffolk": 0.0425, "Herkimer": 0.0425,
+            "Dutchess": 0.0375, "Orange": 0.0375,
+            "Ontario": 0.035,
+            "Saratoga": 0.03, "Warren": 0.03, "Washington": 0.03
+        }
+
+    def _load_geodata(self):
+        """Завантажує GeoJSON та будує просторове R-дерево."""
+        filepath = os.path.join(os.path.dirname(__file__), "..", "data", "ny_counties.geojson")
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                for feature in data.get('features', []):
+                    name = feature['properties'].get('name', '').replace(' County', '').strip()
+                    
+                    # Буфер для охоплення мостів та прибережної зони
+                    polygon = shape(feature['geometry']).buffer(0.001).simplify(0.002)
+                    
+                    self.polygons.append(polygon)
+                    self.county_names.append(name)
                 
-                data = resp.json()
-                if "error" in data:
-                    logger.warning(f"Nominatim не знайшов адресу для {lat}, {lon}")
-                    raise HTTPException(status_code=400, detail="Неможливо визначити локацію за координатами")
+                self.spatial_index = STRtree(self.polygons)
+            logger.info("Просторовий індекс геоданих NY успішно ініціалізовано.")
+        except Exception as e:
+            logger.error(f"Помилка завантаження геоданих NY: {e}")
 
-                address = data.get("address", {})
-                state = address.get("state")
-                county = address.get("county", address.get("city", "New York"))
-                county_clean = county.replace(" County", "").strip()
-                city = address.get("city", address.get("town", address.get("village", "")))
-
-                return {
-                    "state": state,
-                    "county": county_clean,
-                    "city": city
-                }
-
-            except httpx.RequestError as exc:
-                logger.error(f"Помилка мережі при запиті до Nominatim: {exc}")
-                raise HTTPException(status_code=503, detail="Помилка мережі при перевірці локації")
-
+    def _get_county_by_coords(self, lat: float, lon: float) -> str:
+        """Пошук округу за координатами через просторовий індекс."""
+        if not self.spatial_index: 
+            return None
+        point = Point(lon, lat) 
+        candidate_indices = self.spatial_index.query(point)
+        for idx in candidate_indices:
+            if self.polygons[idx].contains(point):
+                return self.county_names[idx]
+        return None 
 
     async def calculate_full_tax_info(self, lat: float, lon: float, subtotal: float) -> dict:
-        """Основний метод розрахунку податку на основі гео-даних."""
-        # 1. Отримуємо дані про локацію через зовнішній API
-        location = await self._get_location_data(lat, lon)
+        """Розрахунок податків для одиночного замовлення."""
+        county = self._get_county_by_coords(lat, lon)
+        if not county:
+            raise HTTPException(status_code=400, detail="Точка знаходиться поза межами штату Нью-Йорк.")
+
+        local_rate = self.county_tax_rates.get(county, 0.04)
+        special_rate = self.mctd_rate if county in self.mctd_counties else 0.0
         
-        # 2. Перевірка приналежності до штату NY (беремо назву з налаштувань)
-        if location.get("state") != "New York":
-            logger.info(f"Відмова: точка ({lat}, {lon}) знаходиться в штаті {location.get('state')}")
-            raise HTTPException(
-                status_code=400, 
-                detail="Доставка можлива лише в межах штату Нью-Йорк"
-            )
-
-        county_name_lower = location["county"].lower()
-
-        # 3. Визначення базових ставок (використовуємо Decimal для точності)
-        state_rate = Decimal(str(settings.NY_STATE_TAX_RATE))
-        special_rates = Decimal(str(settings.MCTD_TAX_RATE)) if county_name_lower in MCTD_COUNTIES else Decimal('0.0')
-        city_rate = Decimal('0.0')
-        
-        # Отримуємо загальну ставку з кешу CSV (дефолт 8.875% для NYC)
-        total_csv_rate = Decimal(str(self.rates_cache.get(county_name_lower, 0.08875)))
-        
-        # Обчислюємо ставку округу як залишок
-        county_rate = total_csv_rate - state_rate - special_rates
-        if county_rate < 0: 
-            county_rate = Decimal('0.0')
-
-        # 4. Розрахунок підсумкових сум
-        composite_tax_rate = state_rate + county_rate + city_rate + special_rates
-        subtotal_dec = Decimal(str(subtotal))
-        
-        raw_tax_amount = subtotal_dec * composite_tax_rate
-        tax_amount = raw_tax_amount.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        total_amount = subtotal_dec + tax_amount
-
-        # 5. Формування результату
-        jurisdictions = ["New York State", f"{location['county']} County"]
-        if special_rates > 0:
-            jurisdictions.append("MCTD (Special)")
-
-        logger.info(f"Розраховано податок для {location['county']}: {composite_tax_rate*100}%")
+        total_rate = self.state_tax_rate + local_rate + special_rate
+        tax_amount = subtotal * total_rate
 
         return {
-            "composite_tax_rate": float(composite_tax_rate),
-            "tax_amount": float(tax_amount),
-            "total_amount": float(total_amount),
+            "composite_tax_rate": round(total_rate, 5),
+            "tax_amount": round(tax_amount, 2),
+            "total_amount": round(subtotal + tax_amount, 2),
             "breakdown": {
-                "state_rate": float(state_rate),
-                "county_rate": float(county_rate),
-                "city_rate": float(city_rate),
-                "special_rates": float(special_rates)
+                "state_rate": self.state_tax_rate,
+                "county_rate": local_rate,
+                "city_rate": 0.0,
+                "special_rates": special_rate
             },
-            "jurisdictions": jurisdictions
+            "jurisdictions": ["New York State", f"{county} County"]
         }
 
-@lru_cache()
-def get_tax_service() -> TaxCalculatorService:
-    return TaxCalculatorService()
+    def enrich_dataframe_with_taxes(self, df: pd.DataFrame):
+        """Векторизована обробка масиву координат для розрахунку податків."""
+        points = shapely.points(df['longitude'], df['latitude'])
+        pt_idx, poly_idx = self.spatial_index.query(points, predicate='intersects')
+        
+        df['county'] = None
+        if len(pt_idx) > 0:
+            county_array = np.array(self.county_names)
+            df.iloc[pt_idx, df.columns.get_loc('county')] = county_array[poly_idx]
+
+        valid_df = df[df['county'].notnull()].copy()
+        invalid_df = df[df['county'].isnull()].copy()
+        
+        if valid_df.empty:
+            return valid_df, invalid_df
+
+        valid_df['state_tax_rate'] = self.state_tax_rate
+        valid_df['county_tax_rate'] = valid_df['county'].map(self.county_tax_rates).fillna(0.04)
+        
+        valid_df['mctd_rate'] = 0.0
+        is_mctd = valid_df['county'].isin(self.mctd_counties)
+        valid_df.loc[is_mctd, 'mctd_rate'] = self.mctd_rate
+        
+        valid_df['composite_tax_rate'] = valid_df['state_tax_rate'] + valid_df['county_tax_rate'] + valid_df['mctd_rate']
+        valid_df['tax_amount'] = valid_df['subtotal'] * valid_df['composite_tax_rate']
+        valid_df['total_amount'] = valid_df['subtotal'] + valid_df['tax_amount']
+        
+        valid_df['breakdown'] = [
+            json.dumps({"state_rate": sr, "county_rate": cr, "city_rate": 0.0, "special_rates": mr})
+            for sr, cr, mr in zip(valid_df['state_tax_rate'], valid_df['county_tax_rate'], valid_df['mctd_rate'])
+        ]
+        valid_df['jurisdictions'] = [
+            json.dumps(["New York State", f"{county} County"]) 
+            for county in valid_df['county']
+        ]
+        
+        return valid_df, invalid_df
+
+
+_instance = None
+
+def get_tax_service():
+    global _instance
+    if _instance is None:
+        _instance = TaxCalculatorService()
+    return _instance

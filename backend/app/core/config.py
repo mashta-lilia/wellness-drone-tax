@@ -1,12 +1,14 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 class Settings(BaseSettings):
-    # УБЕРИТЕ отсюда app_name и debug полностью!
-
+    """
+    Головні налаштування додатку.
+    Параметри завантажуються зі змінних середовища або файлу .env.
+    """
     # Налаштування бази даних
     DATABASE_URL: str 
     
-    # Податкові ставки (значення за замовчуванням)
+    # Базові податкові константи
     NY_STATE_TAX_RATE: float = 0.04
     NY_COUNTY_TAX_RATE: float = 0.04
     MCTD_TAX_RATE: float = 0.00375
@@ -21,7 +23,7 @@ class Settings(BaseSettings):
     NY_LON_MIN: float = -79.762590
     NY_LON_MAX: float = -71.777491
 
-    # ВАЖНО: добавляем extra="ignore"
+    # Ігноруємо зайві змінні з .env, щоб не викликати помилок Pydantic
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

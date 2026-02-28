@@ -17,6 +17,7 @@ pydantic-settings>=2.0.0
 pydantic_core==2.41.5
 pydantic-settings==2.13.1
 python-dotenv==1.2.1
+shapely==2.0.3
 python-multipart==0.0.22
 PyYAML==6.0.3
 SQLAlchemy==2.0.46
@@ -32,3 +33,4 @@ passlib[bcrypt]
 PyJWT==2.8.0
 email-validator 
 python-jose[cryptography]
+pandas==2.2.1

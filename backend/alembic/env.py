@@ -5,6 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from dotenv import load_dotenv
 
+# Додаємо корінь проекту до sys.path для коректного імпорту моделей
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.db.database import Base
@@ -19,6 +20,7 @@ if db_url:
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:

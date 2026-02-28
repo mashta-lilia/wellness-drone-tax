@@ -2,17 +2,26 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Box, Button, TextField, Typography, Paper, Stack, Divider, CircularProgress } from '@mui/material';
 import { createManualOrder } from '../../api/orders';
-import type { Order } from '../../types/order'; // Пункт №2: Імпорт типів
-import { formatCurrency, formatPercent } from '../../utils/formatters'; // Пункт №1: Форматтери
+import type { Order } from '../../types/order';
+import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { toast } from 'react-toastify';
 
-// Типізація полів форми
+/**
+ * Типізація даних форми для розрахунку замовлення.
+ * Усі поля зберігаються як рядки для коректної роботи текстових інпутів,
+ * а перед відправкою на сервер конвертуються в числа.
+ */
 interface OrderFormData {
   latitude: string;
   longitude: string;
   subtotal: string;
 }
 
+/**
+ * Компонент форми для ручного введення даних замовлення (координати та сума).
+ * Використовує react-hook-form для валідації на льоту.
+ * Після успішного запиту перемикається в режим відображення детального чека з податками.
+ */
 export const ManualOrderForm = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Order | null>(null);
@@ -21,6 +30,10 @@ export const ManualOrderForm = () => {
     defaultValues: { latitude: '', longitude: '', subtotal: '' }
   });
 
+  /**
+   * Обробник відправки валідної форми.
+   * * @param data - Об'єкт із введеними координатами та сумою.
+   */
   const onSubmit = async (data: OrderFormData) => {
     setLoading(true);
     setResult(null); 
@@ -34,7 +47,6 @@ export const ManualOrderForm = () => {
       setResult(order);
       toast.success("Податок успішно розраховано!");
     } catch (err: unknown) {
-      // Пункт №2: Сувора обробка помилок без any
       const error = err as Error;
       toast.error(error.message || "Сталася помилка при створенні замовлення");
     } finally {
@@ -42,6 +54,9 @@ export const ManualOrderForm = () => {
     }
   };
 
+  /**
+   * Скидає стан форми та приховує результати попереднього розрахунку.
+   */
   const handleReset = () => {
     reset();
     setResult(null); 
@@ -63,7 +78,7 @@ export const ManualOrderForm = () => {
                 {...register("latitude", { 
                   required: "Обов'язкове поле",
                   pattern: {
-                    value: /^-?\d+(\.\d+)?$/, // Пункт №3: Валідація Regex
+                    value: /^-?\d+(\.\d+)?$/,
                     message: "Введіть число (наприклад: 40.7128)"
                   }
                 })}
@@ -94,7 +109,7 @@ export const ManualOrderForm = () => {
               />
               <Button 
                 type="submit" variant="contained" 
-                disabled={loading} // Пункт №3: Блокування кнопки
+                disabled={loading}
                 sx={{ py: 1.2, fontWeight: 'bold' }}
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : "Розрахувати"}
@@ -108,7 +123,6 @@ export const ManualOrderForm = () => {
           <Divider sx={{ mb: 2 }} />
           
           <Stack spacing={2} sx={{ textAlign: 'center' }}>
-            {/* Пункт №1: Використання форматтерів замість .toFixed() */}
             <Typography>Загальна ставка: <b>{formatPercent(result.composite_tax_rate || 0)}</b></Typography>
             
             {result.breakdown && (

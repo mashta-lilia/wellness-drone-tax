@@ -1,27 +1,33 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'; // Додали useNavigate
-
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Box, Drawer, List, ListItem, ListItemButton, ListItemText, 
   Typography, AppBar, Toolbar, Stack, IconButton, Tooltip 
 } from '@mui/material';
 import ToysIcon from '@mui/icons-material/Toys';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import LogoutIcon from '@mui/icons-material/Logout'; // Іконка виходу
+import LogoutIcon from '@mui/icons-material/Logout';
 
 const drawerWidth = 240;
 
+/**
+ * Головний компонент-обгортка (Layout) для авторизованої частини додатку.
+ * Містить верхню панель (AppBar) з інформацією про користувача та кнопкою виходу,
+ * фіксоване бічне меню (Drawer) для навігації, а також контейнер для дочірніх сторінок (Outlet).
+ */
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // 1. Отримуємо ім'я користувача з пам'яті браузера
   const userName = localStorage.getItem('user_name') || 'Admin User';
 
-  // 2. Функція для виходу з системи
+  /**
+   * Обробник виходу з системи.
+   * Очищає дані сесії користувача в локальному сховищі та перенаправляє на сторінку логіну.
+   */
   const handleLogout = () => {
-    localStorage.removeItem('jwt_token'); // Видаляємо токен
-    localStorage.removeItem('user_name'); // Видаляємо ім'я
-    navigate('/login'); // Повертаємося на сторінку входу
+    localStorage.removeItem('jwt_token');
+    localStorage.removeItem('user_name');
+    navigate('/login');
   };
 
   const menuItems = [
@@ -45,14 +51,12 @@ const MainLayout = () => {
           </Stack>
           
           <Stack direction="row" spacing={2} alignItems="center">
-            {/* ТУТ ТЕПЕР ЖИВЕ ТВОЄ ІМ'Я */}
             <Typography variant="body1" sx={{ color: '#555', fontWeight: 500 }}>
               {userName}
             </Typography>
             
             <AccountCircleIcon sx={{ color: '#1976d2', fontSize: 35 }} />
 
-            {/* Додамо кнопку виходу для повноцінного UX */}
             <Tooltip title="Вийти">
               <IconButton onClick={handleLogout} size="small" sx={{ color: '#d32f2f' }}>
                 <LogoutIcon />

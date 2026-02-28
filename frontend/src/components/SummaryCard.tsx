@@ -1,14 +1,26 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box, Stack } from '@mui/material';
 
-// Описуємо типи пропсів
+/**
+ * Властивості для компонента SummaryCard.
+ */
 interface SummaryCardProps {
+  /** Заголовок картки, який описує метрику (наприклад, "Загальна сума" або "Кількість замовлень"). */
   title: string;
-  value: string | number; // Додай "| number", якщо його там немає
+  /** Значення метрики для відображення (може бути як текстом, так і числом). */
+  value: string | number;
+  /** Компонент іконки, який буде відображатися зліва від тексту. */
   icon: React.ReactNode;
+  /** Колір іконки. Передається як значення палітри MUI (за замовчуванням 'primary.main'). */
   color?: string;
 }
 
+/**
+ * Компонент картки для відображення зведеної інформації (статистики або метрик).
+ * Складається з іконки на напівпрозорому фоні, підпису та основного великого значення.
+ * * @param props - Властивості компонента (title, value, icon, color).
+ * @returns Відрендерена картка з показником.
+ */
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, value, icon, color = 'primary.main' }) => {
   return (
     <Card sx={{ minWidth: 200, boxShadow: 2, borderRadius: 2 }}>
