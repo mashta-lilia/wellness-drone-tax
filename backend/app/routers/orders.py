@@ -8,10 +8,12 @@ from app.db.models.models import Order
 from app.schemas.order import OrderCreate, OrderResponse
 from app.services.tax_service import get_tax_service, TaxCalculatorService
 from app.services.order_service import OrderService
+from app.core.security import get_current_admin
 
 router = APIRouter(
     prefix="/orders",
-    tags=["orders"]
+    tags=["orders"],
+    dependencies=[Depends(get_current_admin)]
 )
 
 def get_order_service(

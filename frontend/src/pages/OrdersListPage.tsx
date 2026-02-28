@@ -15,7 +15,7 @@ import SearchIcon from '@mui/icons-material/Search';
 
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
-import axios from 'axios';
+import api from '../api/axiosInstance';
 import { toast } from 'react-toastify';
 import SummaryCard from '../components/SummaryCard';
 import type { Order } from '../types/order';
@@ -63,12 +63,11 @@ export const OrdersListPage = () => {
     try {
       let url = `http://localhost:8000/orders?page=${page + 1}&limit=${rowsPerPage}&sortBy=${orderBy}&sortOrder=${order}`;
       if (searchId) url += `&search=${searchId}`;
-      
       // Додаємо обидві дати до запиту
       if (startDate) url += `&start_date=${startDate.toISOString().split('T')[0]}`;
       if (endDate) url += `&end_date=${endDate.toISOString().split('T')[0]}`;
       
-      const response = await axios.get(url);
+      const response = await api.get(url);
       setOrders(response.data.items || []);
       setTotalCount(response.data.total || 0);
       setTotalTaxDb(response.data.total_tax || 0);
@@ -84,8 +83,8 @@ export const OrdersListPage = () => {
   // 2. ФУНКЦІЯ ДЛЯ СКАСУВАННЯ ЗАМОВЛЕННЯ
   const handleCancelOrder = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:8000/orders/${id}`);
-      toast.success("Замовлення успішно видалено!");
+      await api.patch(`http://localhost:8000/orders/${id}/cancel`);
+      toast.success("Замовлення скасовано!");
       fetchOrders(); 
     } catch (error) {
       console.error("Помилка при видаленні:", error);
@@ -122,7 +121,7 @@ export const OrdersListPage = () => {
       if (startDate) url += `&start_date=${startDate.toISOString().split('T')[0]}`;
       if (endDate) url += `&end_date=${endDate.toISOString().split('T')[0]}`;
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       const dataToExport: Order[] = response.data.items || [];
 
       if (dataToExport.length === 0) {
